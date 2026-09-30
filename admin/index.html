@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Mayoristas de Perfumes Venezuela</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <h1>Mayoristas <span>de Perfumes Venezuela</span></h1>
+    <p class="login-sub">Panel de administración</p>
+    <form id="loginForm">
+      <label>
+        <span>Correo</span>
+        <input type="email" id="loginEmail" required autocomplete="username">
+      </label>
+      <label>
+        <span>Contraseña</span>
+        <input type="password" id="loginPassword" required autocomplete="current-password">
+      </label>
+      <button type="submit" id="loginBtn">Entrar</button>
+      <p class="login-error" id="loginError" hidden></p>
+    </form>
+  </div>
+</div>
+
+<!-- ============ APP PRINCIPAL ============ -->
+<div class="admin-app" id="adminApp" hidden>
+  <header class="admin-header">
+    <span class="admin-brand">Mayoristas <span>de Perfumes Venezuela</span> <em>ADMIN</em></span>
+    <div class="admin-header-right">
+      <a href="../index.html" target="_blank" class="btn-ghost">Ver sitio ↗</a>
+      <span id="adminUserEmail"></span>
+      <button id="logoutBtn" class="btn-ghost">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <nav class="admin-tabs">
+    <button class="admin-tab active" data-tab="summary">Resumen</button>
+    <button class="admin-tab" data-tab="products">Productos</button>
+    <button class="admin-tab" data-tab="orders">Pedidos <span class="tab-badge" id="ordersBadge" hidden>0</span></button>
+    <button class="admin-tab" data-tab="banners">Banners</button>
+    <button class="admin-tab" data-tab="settings">Ajustes</button>
+  </nav>
+
+  <main class="admin-main">
+
+    <!-- ============ TAB: RESUMEN ============ -->
+    <div class="admin-tab-panel" id="tabSummary">
+      <div class="stats-grid">
+        <div class="stat-card"><strong id="statTotalProducts">0</strong><span>Productos</span></div>
+        <div class="stat-card"><strong id="statAvailProducts">0</strong><span>Disponibles</span></div>
+        <div class="stat-card"><strong id="statOutProducts">0</strong><span>Agotados</span></div>
+        <div class="stat-card"><strong id="statNewOrders">0</strong><span>Pedidos nuevos</span></div>
+      </div>
+    </div>
+
+    <!-- ============ TAB: PRODUCTOS ============ -->
+    <div class="admin-tab-panel" id="tabProducts" hidden>
+      <section class="admin-toolbar">
+        <input type="text" id="adminSearch" placeholder="Buscar producto…">
+        <div class="admin-actions">
+          <button id="newProductBtn" class="btn-primary">+ Nuevo producto</button>
+        </div>
+      </section>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Nombre</th>
+              <th>Categoría</th>
+              <th>Detal</th>
+              <th>Mayor</th>
+              <th>Disponible</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="adminTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ TAB: PEDIDOS ============ -->
+    <div class="admin-tab-panel" id="tabOrders" hidden>
+      <div class="orders-list" id="ordersList"></div>
+      <p class="admin-empty" id="ordersEmpty" hidden>Todavía no hay pedidos.</p>
+    </div>
+
+    <!-- ============ TAB: BANNERS ============ -->
+    <div class="admin-tab-panel" id="tabBanners" hidden>
+      <section class="admin-toolbar">
+        <p class="banners-hint">Los banners aparecen en el carrusel de la portada, en el orden que elijas.</p>
+        <button id="newBannerBtn" class="btn-primary">+ Nuevo banner</button>
+      </section>
+      <div class="banners-list" id="bannersList"></div>
+    </div>
+
+    <!-- ============ TAB: AJUSTES ============ -->
+    <div class="admin-tab-panel" id="tabSettings" hidden>
+      <form id="settingsForm" class="settings-form">
+        <h2>Textos de la portada</h2>
+        <label>
+          <span>Texto pequeño (arriba del título)</span>
+          <input type="text" id="settingsEyebrow">
+        </label>
+        <label>
+          <span>Título principal</span>
+          <input type="text" id="settingsHeroTitle" placeholder="Deja vacío para usar el de siempre">
+        </label>
+        <label>
+          <span>Subtítulo</span>
+          <textarea id="settingsHeroSubtitle" rows="2"></textarea>
+        </label>
+
+        <h2>Tasa del dólar</h2>
+        <label>
+          <span>Bs por $1</span>
+          <input type="number" id="settingsExchangeRate" step="0.01" min="0">
+        </label>
+
+        <h2>Datos de pago</h2>
+        <div class="form-row three">
+          <label><span>Pago Móvil — Teléfono</span><input type="text" id="settingsPagoMovilPhone"></label>
+          <label><span>Pago Móvil — Cédula/RIF</span><input type="text" id="settingsPagoMovilCedula"></label>
+          <label><span>Pago Móvil — Banco</span><input type="text" id="settingsPagoMovilBank"></label>
+        </div>
+        <div class="form-row two">
+          <label><span>Binance — Correo/ID</span><input type="text" id="settingsBinanceEmail"></label>
+          <label><span>Binance — Titular</span><input type="text" id="settingsBinanceHolder"></label>
+        </div>
+        <div class="form-row two">
+          <label><span>Zelle — Correo</span><input type="text" id="settingsZelleEmail"></label>
+          <label><span>Zelle — Titular</span><input type="text" id="settingsZelleHolder"></label>
+        </div>
+
+        <button type="submit" class="btn-primary" id="saveSettingsBtn">Guardar ajustes</button>
+        <p class="form-message" id="settingsMessage" hidden></p>
+      </form>
+    </div>
+
+  </main>
+</div>
+
+<!-- ============ MODAL: PRODUCTO ============ -->
+<div class="modal-overlay" id="productModalOverlay" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="productModalClose">✕</button>
+    <h2 id="productModalTitle">Nuevo producto</h2>
+    <form id="productForm" class="product-form">
+      <input type="hidden" id="fieldId">
+      <label><span>Nombre *</span><input type="text" id="fieldName" required></label>
+      <div class="form-row two">
+        <label><span>Marca</span><input type="text" id="fieldBrand"></label>
+        <label><span>Categoría *</span><input type="text" id="fieldCategory" required list="categoryOptions"><datalist id="categoryOptions"></datalist></label>
+      </div>
+      <div class="form-row two">
+        <label><span>Referencia/SKU</span><input type="text" id="fieldRef"></label>
+        <label><span>Disponible</span>
+          <select id="fieldAvail"><option value="true">Sí</option><option value="false">No</option></select>
+        </label>
+      </div>
+      <div class="form-row three">
+        <label><span>Precio Detal *</span><input type="number" id="fieldDetal" step="0.01" min="0" required></label>
+        <label><span>Precio Mayor *</span><input type="number" id="fieldMayor" step="0.01" min="0" required></label>
+        <label><span>Precio Oferta</span><input type="number" id="fieldOffer" step="0.01" min="0"></label>
+      </div>
+      <label><span>Stock (opcional)</span><input type="number" id="fieldStock" step="1" min="0"></label>
+      <label><span>Nota interna</span><input type="text" id="fieldNote"></label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="fieldFeatured">
+        <span>Destacado (aparece en el carrusel de la portada)</span>
+      </label>
+      <label><span>Imagen</span><input type="file" id="fieldImageFile" accept="image/*"></label>
+      <img id="fieldImagePreview" class="image-preview" hidden>
+
+      <div class="form-actions">
+        <button type="button" class="btn-danger" id="deleteProductBtn" hidden>Eliminar</button>
+        <div class="form-actions-right">
+          <button type="button" id="cancelProductBtn">Cancelar</button>
+          <button type="submit" id="saveProductBtn" class="btn-primary">Guardar</button>
+        </div>
+      </div>
+      <p class="form-message" id="productFormMessage" hidden></p>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL: BANNER ============ -->
+<div class="modal-overlay" id="bannerModalOverlay" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="bannerModalClose">✕</button>
+    <h2 id="bannerModalTitle">Nuevo banner</h2>
+    <form id="bannerForm" class="product-form">
+      <input type="hidden" id="bannerFieldId">
+      <label><span>Título</span><input type="text" id="bannerFieldTitle"></label>
+      <label><span>Subtítulo</span><input type="text" id="bannerFieldSubtitle"></label>
+      <label><span>Imagen</span><input type="file" id="bannerFieldImageFile" accept="image/*"></label>
+      <img id="bannerFieldImagePreview" class="image-preview" hidden>
+      <div class="form-row two">
+        <label><span>Link (opcional)</span><input type="text" id="bannerFieldLink" placeholder="https://…"></label>
+        <label><span>Texto del botón</span><input type="text" id="bannerFieldButtonText" placeholder="Ver más"></label>
+      </div>
+      <div class="form-row two">
+        <label><span>Orden</span><input type="number" id="bannerFieldSort" value="0"></label>
+        <label class="checkbox-label"><input type="checkbox" id="bannerFieldActive" checked><span>Activo</span></label>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn-danger" id="deleteBannerBtn" hidden>Eliminar</button>
+        <div class="form-actions-right">
+          <button type="button" id="cancelBannerBtn">Cancelar</button>
+          <button type="submit" id="saveBannerBtn" class="btn-primary">Guardar</button>
+        </div>
+      </div>
+      <p class="form-message" id="bannerFormMessage" hidden></p>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../config.js"></script>
+<script src="../supabase-client.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
