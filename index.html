@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mayoristas de Perfumes Venezuela</title>
+<meta name="description" content="Perfumes al mayor y al detal en Venezuela — fragancias importadas directo para tu negocio.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============ HEADER ============ -->
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="brand-mark">
+      <span class="brand-word">Mayoristas</span>
+      <span class="brand-sub">de Perfumes Venezuela</span>
+    </a>
+
+    <div class="search-wrap">
+      <span class="search-icon">⚲</span>
+      <input type="text" id="searchInput" placeholder="Buscar por nombre, marca o referencia…">
+      <button class="search-clear" id="searchClear" aria-label="Limpiar búsqueda" hidden>✕</button>
+    </div>
+
+    <div class="header-actions">
+      <button class="mode-toggle" id="priceModeToggle" aria-pressed="false">
+        <span class="mode-dot"></span>
+        <span class="mode-label">Ver precio <strong id="modeLabelText">Detal</strong></span>
+      </button>
+      <button class="icon-btn" id="cartBtn" aria-label="Ver carrito">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M3 4H5L5.4 6M5.4 6H20L18 13H7M5.4 6L6.8 14H18M18 14L19 4M9 19a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="cart-badge" id="cartBadge" hidden>0</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ MARQUEE DE MARCAS ============ -->
+<div class="brand-marquee">
+  <div class="marquee-track" id="marqueeTrack"><!-- filled by JS --></div>
+</div>
+
+<main>
+  <!-- ============ BANNER / HERO ============ -->
+  <section class="banner-carousel" id="bannerCarousel" hidden>
+    <div class="banner-track" id="bannerTrack"><!-- slides por JS --></div>
+    <button class="banner-nav prev" id="bannerPrev" aria-label="Slide anterior">‹</button>
+    <button class="banner-nav next" id="bannerNext" aria-label="Slide siguiente">›</button>
+    <div class="banner-dots" id="bannerDots"></div>
+  </section>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="hero-eyebrow" id="eyebrowText">Compra al mayor o al detal</p>
+      <h1 class="hero-title" id="heroTitle">Fragancias importadas,<br>directo para tu negocio.</h1>
+      <p class="hero-sub" id="heroSubtitle">Perfumería al por mayor en Venezuela — precios especiales desde tu primera compra.</p>
+    </div>
+  </section>
+
+  <!-- ============ DESTACADOS ============ -->
+  <section class="featured-section" id="featuredSection" hidden>
+    <h2 class="featured-title">Destacados</h2>
+    <div class="featured-scroll-wrap">
+      <button class="scroll-arrow prev" aria-label="Ver anteriores">‹</button>
+      <div class="featured-scroll" id="featuredScroll"><!-- filled by JS --></div>
+      <button class="scroll-arrow next" aria-label="Ver siguientes">›</button>
+    </div>
+  </section>
+
+  <!-- ============ FILTROS ============ -->
+  <div class="filter-bar">
+    <div class="filter-chips" id="categoryChips"><!-- filled by JS --></div>
+    <div class="filter-right">
+      <select id="brandSelect" class="filter-select">
+        <option value="">Todas las marcas</option>
+      </select>
+      <select id="sortSelect" class="filter-select">
+        <option value="relevance">Orden: catálogo</option>
+        <option value="price-asc">Precio: menor a mayor</option>
+        <option value="price-desc">Precio: mayor a menor</option>
+        <option value="name-asc">Nombre: A-Z</option>
+      </select>
+    </div>
+  </div>
+
+  <p class="results-count" id="resultsCount"></p>
+
+  <!-- ============ GRID DE PRODUCTOS ============ -->
+  <section class="product-grid" id="productGrid"><!-- filled by JS --></section>
+  <p class="empty-state" id="emptyState" hidden>No encontramos productos con esos filtros.</p>
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="brand-word">Mayoristas</span>
+      <span class="brand-sub">de Perfumes Venezuela</span>
+    </div>
+    <p class="footer-note">Fragancias al mayor y al detal. Pedidos por WhatsApp.</p>
+  </div>
+</footer>
+
+<!-- ============ MODAL: VISTA RÁPIDA DE PRODUCTO ============ -->
+<div class="modal-overlay" id="modalOverlay" hidden>
+  <div class="modal-card product-modal">
+    <button class="modal-close" id="modalClose" aria-label="Cerrar">✕</button>
+    <div class="modal-media">
+      <img src="" alt="" id="modalImage">
+      <span class="modal-stamp" id="modalStamp" hidden>Agotado</span>
+    </div>
+    <div class="modal-body">
+      <p class="modal-brand" id="modalBrand"></p>
+      <h2 class="modal-name" id="modalName"></h2>
+      <p class="modal-ref" id="modalRef"></p>
+      <div class="modal-price-row">
+        <span class="modal-price" id="modalPrice"></span>
+        <span class="modal-price-old" id="modalPriceOld" hidden></span>
+      </div>
+      <div class="modal-cart-row">
+        <div class="qty-stepper">
+          <button type="button" id="modalQtyMinus" aria-label="Restar">−</button>
+          <span id="modalQty">1</span>
+          <button type="button" id="modalQtyPlus" aria-label="Sumar">+</button>
+        </div>
+        <button class="btn-add-cart" id="modalAddCart">Agregar al carrito</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CARRITO (panel lateral) ============ -->
+<div class="cart-overlay" id="cartOverlay" hidden>
+  <div class="cart-panel">
+    <div class="cart-header">
+      <h2>Tu carrito</h2>
+      <button class="modal-close" id="cartClose" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="cart-items" id="cartItems"><!-- filled by JS --></div>
+    <p class="cart-empty" id="cartEmpty" hidden>Tu carrito está vacío.</p>
+    <div class="cart-footer" id="cartFooter" hidden>
+      <div class="cart-total-row">
+        <span>Total</span>
+        <strong id="cartTotal">$0.00</strong>
+      </div>
+      <button class="btn-primary btn-block" id="checkoutBtn">Continuar pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CHECKOUT ============ -->
+<div class="modal-overlay" id="checkoutOverlay" hidden>
+  <div class="modal-card checkout-card">
+    <button class="modal-close" id="checkoutClose" aria-label="Cerrar">✕</button>
+    <h2>Completa tu pedido</h2>
+    <p class="checkout-sub">Con estos datos armamos tu pedido y te contactamos por WhatsApp para confirmar.</p>
+
+    <form id="checkoutForm" class="checkout-form">
+      <div class="checkout-fields-scroll">
+        <label>
+          <span>Nombre completo *</span>
+          <input type="text" id="custName" required placeholder="Ej: María Pérez">
+        </label>
+        <div class="form-row two">
+          <label>
+            <span>Teléfono *</span>
+            <input type="tel" id="custPhone" required placeholder="Ej: 0412 1234567">
+          </label>
+          <label>
+            <span>Ciudad *</span>
+            <input type="text" id="custCity" required placeholder="Ej: Caracas">
+          </label>
+        </div>
+        <label>
+          <span>Correo (opcional)</span>
+          <input type="email" id="custEmail" placeholder="Ej: maria@ejemplo.com">
+        </label>
+        <label>
+          <span>Método de pago *</span>
+          <select id="custPayment" required>
+            <option value="">Selecciona una opción</option>
+            <option value="Pago móvil">Pago móvil</option>
+            <option value="Binance">Binance</option>
+            <option value="Zelle">Zelle</option>
+            <option value="Efectivo">Efectivo</option>
+          </select>
+        </label>
+        <div class="payment-details-box" id="paymentDetailsBox" hidden></div>
+
+        <label>
+          <span>Método de entrega *</span>
+          <select id="custDelivery" required>
+            <option value="">Selecciona una opción</option>
+            <option value="Delivery">Delivery</option>
+            <option value="Pickup">Retiro en punto físico</option>
+            <option value="Envío nacional">Envío nacional</option>
+          </select>
+        </label>
+        <label id="addressField" hidden>
+          <span>Dirección de entrega *</span>
+          <textarea id="custAddress" rows="2" placeholder="Referencia, urbanización, calle, casa/apto…"></textarea>
+        </label>
+      </div>
+      <button class="btn-primary btn-block" id="submitOrderBtn" type="submit">Enviar pedido por WhatsApp</button>
+      <p class="checkout-error" id="checkoutError" hidden></p>
+    </form>
+
+    <div class="checkout-success" id="checkoutSuccess" hidden>
+      <h3>¡Pedido enviado! 🎉</h3>
+      <p>Te vamos a escribir por WhatsApp para confirmar tu pedido.</p>
+      <button class="btn-primary" id="closeSuccessBtn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="supabase-client.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
