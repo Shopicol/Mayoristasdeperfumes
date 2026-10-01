@@ -192,7 +192,7 @@ input, select, textarea{ font-family:inherit; }
 .modal-min-qty-note{ font-size:12.5px; color:var(--gold); font-weight:600; margin:0 0 14px; }
 .modal-min-qty-note[hidden]{ display:none; }
 .card-price-row{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
-.card-price{ font-family:var(--font-display); font-size:19px; color:var(--gold-bright); }
+.card-price{ font-family:var(--font-body); font-weight:600; font-size:18px; color:var(--gold-bright); }
 .card-price-old{ font-size:12px; color:var(--text-soft); text-decoration:line-through; }
 
 .stamp-agotado{
@@ -235,7 +235,7 @@ input, select, textarea{ font-family:inherit; }
 .modal-name{ font-family:var(--font-display); font-size:24px; margin:0 0 8px; letter-spacing:.01em; }
 .modal-ref{ font-size:12px; color:var(--text-soft); margin:0 0 18px; }
 .modal-price-row{ display:flex; align-items:baseline; gap:10px; margin-bottom:22px; }
-.modal-price{ font-family:var(--font-display); font-size:28px; color:var(--gold-bright); }
+.modal-price{ font-family:var(--font-body); font-weight:600; font-size:27px; color:var(--gold-bright); }
 .modal-price-old{ font-size:14px; color:var(--text-soft); text-decoration:line-through; }
 .modal-cart-row{ display:flex; gap:12px; align-items:center; }
 .qty-stepper{ display:flex; align-items:center; border:1px solid var(--line); border-radius:2px; }
@@ -260,9 +260,15 @@ input, select, textarea{ font-family:inherit; }
 .cart-line-name{ font-size:13px; font-weight:500; margin:0 0 4px; color:var(--text); }
 .cart-line-price{ font-size:12.5px; color:var(--text-soft); }
 .cart-empty{ text-align:center; color:var(--text-soft); padding:40px 20px; font-size:13.5px; }
+.cart-min-progress{
+  margin:0 22px 14px; padding:11px 14px; border-radius:2px; font-size:12.5px; line-height:1.4;
+  background:var(--ruby-soft); color:var(--ruby); border:1px solid var(--ruby);
+}
+.cart-min-progress.ok{ background:rgba(201,162,39,.12); color:var(--gold); border-color:var(--gold); }
+.cart-min-progress[hidden]{ display:none; }
 .cart-footer{ padding:18px 22px; border-top:1px solid var(--line); }
 .cart-total-row{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px; font-size:15px; }
-.cart-total-row strong{ font-family:var(--font-display); font-size:22px; color:var(--gold-bright); }
+.cart-total-row strong{ font-family:var(--font-body); font-weight:700; font-size:21px; color:var(--gold-bright); }
 .btn-primary{
   background:var(--gold); color:var(--bg); border:none; border-radius:2px; padding:14px 22px;
   font-weight:600; font-size:13px; cursor:pointer; letter-spacing:.05em; text-transform:uppercase;

@@ -9,6 +9,7 @@
   let currentModalProduct = null;
   let modalQtyValue = 1;
   let modalMinQty = 1;
+  const WHOLESALE_MIN_TOTAL = 12; // mínimo total de unidades (puede ser surtido, mezclando perfumes)
 
   const state = {
     query: "",
@@ -81,6 +82,7 @@
     cartClose: document.getElementById("cartClose"),
     cartItems: document.getElementById("cartItems"),
     cartEmpty: document.getElementById("cartEmpty"),
+    cartMinProgress: document.getElementById("cartMinProgress"),
     cartFooter: document.getElementById("cartFooter"),
     cartTotal: document.getElementById("cartTotal"),
     checkoutBtn: document.getElementById("checkoutBtn"),
@@ -153,6 +155,17 @@
     }, 0);
   }
 
+  function pooledQty() {
+    const cart = loadCart();
+    return Object.entries(cart).reduce((sum, [key, qty]) => {
+      const { id } = parseCartKey(key);
+      const p = PRODUCTS.find(pp => String(pp.id) === String(id));
+      if (!p) return sum;
+      const counts = (p.min_qty || 12) > 1; // las cajas (min_qty=1) no cuentan para el mínimo
+      return counts ? sum + qty : sum;
+    }, 0);
+  }
+
   function renderCartPanel() {
     const cart = loadCart();
     const entries = Object.entries(cart);
@@ -160,6 +173,7 @@
       el.cartItems.innerHTML = "";
       el.cartEmpty.hidden = false;
       el.cartFooter.hidden = true;
+      el.cartMinProgress.hidden = true;
       return;
     }
     el.cartEmpty.hidden = true;
@@ -185,6 +199,16 @@
         </div>
       `;
     }).join("");
+
+    const pooled = pooledQty();
+    el.cartMinProgress.hidden = false;
+    if (pooled >= WHOLESALE_MIN_TOTAL) {
+      el.cartMinProgress.className = "cart-min-progress ok";
+      el.cartMinProgress.textContent = `✓ Mínimo completo (${pooled} unidades)`;
+    } else {
+      el.cartMinProgress.className = "cart-min-progress";
+      el.cartMinProgress.textContent = `Llevas ${pooled} de ${WHOLESALE_MIN_TOTAL} unidades mínimas — agrega ${WHOLESALE_MIN_TOTAL - pooled} más (puedes combinar perfumes distintos)`;
+    }
 
     el.cartTotal.textContent = money(cartTotal());
   }
@@ -314,9 +338,9 @@
     const minQty = p.min_qty || 12;
     const stamp = !avail ? `<span class="stamp-agotado">Agotado</span>` : "";
     const badge = p.featured ? `<span class="card-badge">Destacado</span>` : "";
-    const minQtyNote = minQty > 1 ? `<p class="card-min-qty">Mín. ${minQty} unid.</p>` : "";
+    const minQtyNote = minQty > 1 ? `<p class="card-min-qty">Cuenta para tu surtido mínimo</p>` : "";
     const quickAdd = avail
-      ? `<button class="card-quickadd" data-quickadd="${p.id}" data-quickadd-qty="${minQty}" aria-label="Agregar al carrito">+</button>`
+      ? `<button class="card-quickadd" data-quickadd="${p.id}" data-quickadd-qty="1" aria-label="Agregar al carrito">+</button>`
       : "";
     return `
       <article class="card" data-id="${p.id}">
@@ -461,7 +485,7 @@
   function openModal(p) {
     currentModalProduct = p;
     modalMinQty = p.min_qty || 12;
-    modalQtyValue = modalMinQty;
+    modalQtyValue = 1;
     const avail = isEffectivelyAvailable(p);
     const price = p.offer || p.mayor || 0;
     const showOld = p.offer && p.offer < p.mayor;
@@ -477,7 +501,7 @@
     el.modalPriceOld.textContent = showOld ? money(p.mayor) : "";
     el.modalQty.textContent = modalQtyValue;
     el.modalMinQtyNote.hidden = modalMinQty <= 1;
-    el.modalMinQtyNote.textContent = modalMinQty > 1 ? `Se vende de ${modalMinQty} en ${modalMinQty} unidades` : "";
+    el.modalMinQtyNote.textContent = modalMinQty > 1 ? "Cuenta para tu surtido mínimo de 12 unidades — puedes combinarlo con otros perfumes" : "";
     el.modalAddCart.disabled = !avail;
     el.modalAddCart.textContent = avail ? "Agregar al carrito" : "Agotado";
 
@@ -490,8 +514,8 @@
   }
   el.modalClose.addEventListener("click", closeModal);
   el.modalOverlay.addEventListener("click", e => { if (e.target === el.modalOverlay) closeModal(); });
-  el.modalQtyMinus.addEventListener("click", () => { if (modalQtyValue > modalMinQty) { modalQtyValue -= modalMinQty; el.modalQty.textContent = modalQtyValue; } });
-  el.modalQtyPlus.addEventListener("click", () => { modalQtyValue += modalMinQty; el.modalQty.textContent = modalQtyValue; });
+  el.modalQtyMinus.addEventListener("click", () => { if (modalQtyValue > 1) { modalQtyValue--; el.modalQty.textContent = modalQtyValue; } });
+  el.modalQtyPlus.addEventListener("click", () => { modalQtyValue++; el.modalQty.textContent = modalQtyValue; });
   el.modalAddCart.addEventListener("click", () => {
     if (!currentModalProduct) return;
     addToCart(currentModalProduct.id, modalQtyValue);
@@ -561,6 +585,13 @@
     const entries = Object.entries(cart);
     if (!entries.length) {
       el.checkoutError.textContent = "Tu carrito está vacío.";
+      el.checkoutError.hidden = false;
+      return;
+    }
+
+    const pooled = pooledQty();
+    if (pooled < WHOLESALE_MIN_TOTAL) {
+      el.checkoutError.textContent = `Te faltan ${WHOLESALE_MIN_TOTAL - pooled} unidades para completar el mínimo de ${WHOLESALE_MIN_TOTAL} (puedes combinar varios perfumes distintos).`;
       el.checkoutError.hidden = false;
       return;
     }

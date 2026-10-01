@@ -10,7 +10,7 @@ const supabaseClient = SUPABASE_READY
 const DEFAULT_SETTINGS = {
   id: 1,
   whatsapp_number: typeof WHATSAPP_NUMBER !== "undefined" ? WHATSAPP_NUMBER : "",
-  eyebrow_text: "Venta al mayor — mínimo 12 unidades por fragancia",
+  eyebrow_text: "Venta al mayor — mínimo 12 unidades por pedido (puedes combinar fragancias)",
   hero_title: "",
   hero_subtitle: "",
   exchange_rate: 0,
