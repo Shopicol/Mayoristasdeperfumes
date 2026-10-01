@@ -8,13 +8,13 @@
   let siteSettings = null;
   let currentModalProduct = null;
   let modalQtyValue = 1;
+  let modalMinQty = 1;
 
   const state = {
     query: "",
     category: "Todas",
     brand: "",
     sort: "relevance",
-    priceMode: "detal", // "detal" | "mayor"
   };
 
   function isEffectivelyAvailable(p) {
@@ -37,8 +37,6 @@
   const el = {
     searchInput: document.getElementById("searchInput"),
     searchClear: document.getElementById("searchClear"),
-    priceModeToggle: document.getElementById("priceModeToggle"),
-    modeLabelText: document.getElementById("modeLabelText"),
     cartBtn: document.getElementById("cartBtn"),
     cartBadge: document.getElementById("cartBadge"),
 
@@ -74,6 +72,7 @@
     modalPrice: document.getElementById("modalPrice"),
     modalPriceOld: document.getElementById("modalPriceOld"),
     modalQty: document.getElementById("modalQty"),
+    modalMinQtyNote: document.getElementById("modalMinQtyNote"),
     modalQtyMinus: document.getElementById("modalQtyMinus"),
     modalQtyPlus: document.getElementById("modalQtyPlus"),
     modalAddCart: document.getElementById("modalAddCart"),
@@ -149,7 +148,7 @@
       const { id } = parseCartKey(key);
       const p = PRODUCTS.find(pp => String(pp.id) === String(id));
       if (!p) return sum;
-      const price = p.offer || p[state.priceMode] || 0;
+      const price = p.offer || p.mayor || 0;
       return sum + qty * price;
     }, 0);
   }
@@ -170,7 +169,7 @@
       const { id } = parseCartKey(key);
       const p = PRODUCTS.find(pp => String(pp.id) === String(id));
       if (!p) return "";
-      const price = p.offer || p[state.priceMode] || 0;
+      const price = p.offer || p.mayor || 0;
       return `
         <div class="cart-line">
           <img src="${p.image || ''}" alt="${p.name}">
@@ -231,13 +230,7 @@
   /* ---------------------------------------------------------------
      Modo de precio (Detal / Mayor)
      --------------------------------------------------------------- */
-  el.priceModeToggle.addEventListener("click", () => {
-    state.priceMode = state.priceMode === "detal" ? "mayor" : "detal";
-    el.modeLabelText.textContent = state.priceMode === "detal" ? "Detal" : "Mayor";
-    el.priceModeToggle.setAttribute("aria-pressed", state.priceMode === "mayor" ? "true" : "false");
-    render();
-    renderFeatured();
-  });
+  // (Ya no hay alternar Detal/Mayor — este negocio maneja un solo precio)
 
   /* ---------------------------------------------------------------
      Marquee de marcas
@@ -315,12 +308,14 @@
      --------------------------------------------------------------- */
   function cardTemplate(p) {
     const avail = isEffectivelyAvailable(p);
-    const price = p.offer || p[state.priceMode] || 0;
-    const showOld = p.offer && p.offer < p[state.priceMode];
+    const price = p.offer || p.mayor || 0;
+    const showOld = p.offer && p.offer < p.mayor;
+    const minQty = p.min_qty || 12;
     const stamp = !avail ? `<span class="stamp-agotado">Agotado</span>` : "";
     const badge = p.featured ? `<span class="card-badge">Destacado</span>` : "";
+    const minQtyNote = minQty > 1 ? `<p class="card-min-qty">Mín. ${minQty} unid.</p>` : "";
     const quickAdd = avail
-      ? `<button class="card-quickadd" data-quickadd="${p.id}" aria-label="Agregar al carrito">+</button>`
+      ? `<button class="card-quickadd" data-quickadd="${p.id}" data-quickadd-qty="${minQty}" aria-label="Agregar al carrito">+</button>`
       : "";
     return `
       <article class="card" data-id="${p.id}">
@@ -335,9 +330,10 @@
           <p class="card-brand">${p.brand || ""}</p>
           <p class="card-name">${p.name}</p>
           <p class="card-ref">${p.ref ? "Ref: " + p.ref : ""}</p>
+          ${minQtyNote}
           <div class="card-price-row">
             <span class="card-price">${money(price)}</span>
-            ${showOld ? `<span class="card-price-old">${money(p[state.priceMode])}</span>` : ""}
+            ${showOld ? `<span class="card-price-old">${money(p.mayor)}</span>` : ""}
           </div>
         </div>
       </article>
@@ -362,7 +358,8 @@
     container.querySelectorAll("[data-quickadd]").forEach(btn => {
       btn.addEventListener("click", e => {
         e.stopPropagation();
-        addToCart(btn.dataset.quickadd, 1);
+        const qty = parseInt(btn.dataset.quickaddQty, 10) || 1;
+        addToCart(btn.dataset.quickadd, qty);
         btn.textContent = "✓";
         setTimeout(() => { btn.textContent = "+"; }, 900);
       });
@@ -431,8 +428,8 @@
     });
 
     switch (state.sort) {
-      case "price-asc": list = list.slice().sort((a, b) => (a[state.priceMode] || 0) - (b[state.priceMode] || 0)); break;
-      case "price-desc": list = list.slice().sort((a, b) => (b[state.priceMode] || 0) - (a[state.priceMode] || 0)); break;
+      case "price-asc": list = list.slice().sort((a, b) => (a.mayor || 0) - (b.mayor || 0)); break;
+      case "price-desc": list = list.slice().sort((a, b) => (b.mayor || 0) - (a.mayor || 0)); break;
       case "name-asc": list = list.slice().sort((a, b) => a.name.localeCompare(b.name, "es")); break;
     }
 
@@ -462,10 +459,11 @@
      --------------------------------------------------------------- */
   function openModal(p) {
     currentModalProduct = p;
-    modalQtyValue = 1;
+    modalMinQty = p.min_qty || 12;
+    modalQtyValue = modalMinQty;
     const avail = isEffectivelyAvailable(p);
-    const price = p.offer || p[state.priceMode] || 0;
-    const showOld = p.offer && p.offer < p[state.priceMode];
+    const price = p.offer || p.mayor || 0;
+    const showOld = p.offer && p.offer < p.mayor;
 
     el.modalImage.src = p.image || "";
     el.modalImage.alt = p.name;
@@ -475,8 +473,10 @@
     el.modalRef.textContent = p.ref ? "Ref: " + p.ref : "";
     el.modalPrice.textContent = money(price);
     el.modalPriceOld.hidden = !showOld;
-    el.modalPriceOld.textContent = showOld ? money(p[state.priceMode]) : "";
+    el.modalPriceOld.textContent = showOld ? money(p.mayor) : "";
     el.modalQty.textContent = modalQtyValue;
+    el.modalMinQtyNote.hidden = modalMinQty <= 1;
+    el.modalMinQtyNote.textContent = modalMinQty > 1 ? `Se vende de ${modalMinQty} en ${modalMinQty} unidades` : "";
     el.modalAddCart.disabled = !avail;
     el.modalAddCart.textContent = avail ? "Agregar al carrito" : "Agotado";
 
@@ -489,8 +489,8 @@
   }
   el.modalClose.addEventListener("click", closeModal);
   el.modalOverlay.addEventListener("click", e => { if (e.target === el.modalOverlay) closeModal(); });
-  el.modalQtyMinus.addEventListener("click", () => { if (modalQtyValue > 1) { modalQtyValue--; el.modalQty.textContent = modalQtyValue; } });
-  el.modalQtyPlus.addEventListener("click", () => { modalQtyValue++; el.modalQty.textContent = modalQtyValue; });
+  el.modalQtyMinus.addEventListener("click", () => { if (modalQtyValue > modalMinQty) { modalQtyValue -= modalMinQty; el.modalQty.textContent = modalQtyValue; } });
+  el.modalQtyPlus.addEventListener("click", () => { modalQtyValue += modalMinQty; el.modalQty.textContent = modalQtyValue; });
   el.modalAddCart.addEventListener("click", () => {
     if (!currentModalProduct) return;
     addToCart(currentModalProduct.id, modalQtyValue);
@@ -571,7 +571,7 @@
       const { id } = parseCartKey(key);
       const p = PRODUCTS.find(pp => String(pp.id) === String(id));
       if (!p) return null;
-      const price = p.offer || p[state.priceMode] || 0;
+      const price = p.offer || p.mayor || 0;
       return { id: p.id, name: p.name, qty, price };
     }).filter(Boolean);
 
@@ -601,7 +601,7 @@
       lines.push("");
       items.forEach(i => lines.push(`• ${i.qty}x ${i.name} — ${money(i.price)} c/u`));
       lines.push("");
-      lines.push(`Total: ${money(total)} (${state.priceMode === "mayor" ? "Mayor" : "Detal"})`);
+      lines.push(`Total: ${money(total)}`);
       lines.push("");
       lines.push(`Nombre: ${order.customer_name}`);
       lines.push(`Teléfono: ${order.phone}`);

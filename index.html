@@ -27,10 +27,6 @@
     </div>
 
     <div class="header-actions">
-      <button class="mode-toggle" id="priceModeToggle" aria-pressed="false">
-        <span class="mode-dot"></span>
-        <span class="mode-label">Ver precio <strong id="modeLabelText">Detal</strong></span>
-      </button>
       <button class="icon-btn" id="cartBtn" aria-label="Ver carrito">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M3 4H5L5.4 6M5.4 6H20L18 13H7M5.4 6L6.8 14H18M18 14L19 4M9 19a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -123,6 +119,7 @@
         <span class="modal-price" id="modalPrice"></span>
         <span class="modal-price-old" id="modalPriceOld" hidden></span>
       </div>
+      <p class="modal-min-qty-note" id="modalMinQtyNote" hidden></p>
       <div class="modal-cart-row">
         <div class="qty-stepper">
           <button type="button" id="modalQtyMinus" aria-label="Restar">−</button>
