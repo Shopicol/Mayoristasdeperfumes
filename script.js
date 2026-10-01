@@ -413,7 +413,7 @@
   function renderCategoryChips() {
     const cats = Array.from(new Set(PRODUCTS.map(p => p.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, "es"));
     const all = ["Todas", ...cats];
-    el.categoryChips.innerHTML = all.map(c => `<button data-cat="${c}" class="${c === state.category ? 'active' : ''}">${c}</button>`).join("");
+    el.categoryChips.innerHTML = all.map(c => `<button data-cat="${c}" class="${c === state.category ? 'active' : ''}">${c === 'Todas' ? 'Ver Todos' : c}</button>`).join("");
   }
   el.categoryChips.addEventListener("click", e => {
     const btn = e.target.closest("[data-cat]");
@@ -586,7 +586,10 @@
     el.advisorStep.hidden = true;
     el.checkoutForm.hidden = false;
     el.advisorChosenTag.hidden = false;
-    el.advisorChosenTag.textContent = `Te atiende: ${advisor.name}`;
+    const photo = advisor.image
+      ? `<img src="${advisor.image}" alt="" class="advisor-tag-photo">`
+      : `<span class="advisor-tag-photo advisor-tag-photo-placeholder">${(advisor.name || "?").charAt(0)}</span>`;
+    el.advisorChosenTag.innerHTML = `${photo}<span>Te atiende: ${advisor.name}</span>`;
   }
 
   el.advisorYesBtn.addEventListener("click", async () => {
@@ -596,7 +599,12 @@
     el.advisorYesBtn.disabled = false;
     el.advisorYesBtn.textContent = "Sí, ya tengo una";
     if (!advisors.length) return;
-    el.advisorList.innerHTML = advisors.map(a => `<button type="button" data-advisor-id="${a.id}">${a.name}</button>`).join("");
+    el.advisorList.innerHTML = advisors.map(a => `
+      <button type="button" data-advisor-id="${a.id}">
+        ${a.image ? `<img src="${a.image}" alt="" class="advisor-btn-photo">` : `<span class="advisor-btn-photo advisor-btn-photo-placeholder">${(a.name || "?").charAt(0)}</span>`}
+        <span>${a.name}</span>
+      </button>
+    `).join("");
     el.advisorList.hidden = false;
     el.advisorList.dataset.advisors = JSON.stringify(advisors);
   });
@@ -730,6 +738,23 @@
     if (settings.eyebrow_text) el.eyebrowText.textContent = settings.eyebrow_text;
     if (settings.hero_title) el.heroTitle.innerHTML = settings.hero_title;
     if (settings.hero_subtitle) el.heroSubtitle.textContent = settings.hero_subtitle;
+  }
+
+  /* ---------------------------------------------------------------
+     WhatsApp del footer — reparte por turnos entre las asesoras
+     --------------------------------------------------------------- */
+  const footerWhatsappBtn = document.getElementById("footerWhatsappBtn");
+  if (footerWhatsappBtn) {
+    footerWhatsappBtn.addEventListener("click", async () => {
+      footerWhatsappBtn.disabled = true;
+      const advisor = await getNextAdvisor();
+      footerWhatsappBtn.disabled = false;
+      const rawNumber = (advisor && advisor.phone) || (typeof WHATSAPP_NUMBER !== "undefined" ? WHATSAPP_NUMBER : "");
+      if (!rawNumber || rawNumber.includes("PEGA_AQUI")) return;
+      const waDigits = rawNumber.replace(/\D/g, "");
+      const message = encodeURIComponent("Hola, quiero más información sobre sus perfumes 😊");
+      window.open(`https://wa.me/${waDigits}?text=${message}`, "_blank");
+    });
   }
 
   /* ---------------------------------------------------------------

@@ -1,17 +1,17 @@
 :root{
-  --bg: #15100A;
-  --bg-card: #201810;
-  --bg-card-hover: #2A2015;
-  --gold: #C9A227;
-  --gold-bright: #E8C468;
-  --gold-deep: #8A6D2E;
-  --text: #F2E9D8;
-  --text-soft: #A89A82;
-  --line: #362C1E;
-  --ruby: #C2435A;
-  --ruby-soft: #3A1620;
-  --shadow: 0 6px 24px rgba(0,0,0,.45);
-  --shadow-lg: 0 24px 70px rgba(0,0,0,.65);
+  --bg: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F7F7F5;
+  --gold: #B8912A;
+  --gold-bright: #96781F;
+  --gold-deep: #E3D6AE;
+  --text: #111111;
+  --text-soft: #666666;
+  --line: #E3E3E0;
+  --ruby: #B8384F;
+  --ruby-soft: #FBE8EC;
+  --shadow: 0 6px 24px rgba(0,0,0,.08);
+  --shadow-lg: 0 24px 70px rgba(0,0,0,.16);
   --font-display: "Italiana", serif;
   --font-body: "Jost", sans-serif;
 }
@@ -34,7 +34,9 @@ input, select, textarea{ font-family:inherit; }
   max-width:1280px; margin:0 auto; padding:18px 28px;
   display:flex; align-items:center; gap:24px;
 }
-.brand-mark{ text-decoration:none; color:var(--text); display:flex; flex-direction:column; line-height:1.15; flex-shrink:0; }
+.brand-mark{ text-decoration:none; color:var(--text); display:flex; align-items:center; flex-shrink:0; }
+.brand-logo-img{ height:42px; width:auto; }
+.footer-logo-img{ height:46px; width:auto; margin:0 auto; }
 .brand-word{ font-family:var(--font-display); font-size:24px; letter-spacing:.04em; text-transform:uppercase; }
 .brand-sub{ font-size:10px; letter-spacing:.14em; color:var(--gold); text-transform:uppercase; margin-top:3px; }
 
@@ -207,9 +209,15 @@ input, select, textarea{ font-family:inherit; }
 /* ============================= FOOTER ============================= */
 .site-footer{ background:#0C0906; color:var(--text); padding:40px 28px; margin-top:20px; border-top:1px solid var(--gold-deep); }
 .footer-inner{ max-width:1280px; margin:0 auto; text-align:center; }
-.footer-brand .brand-word{ color:var(--gold-bright); }
-.footer-brand .brand-sub{ color:var(--text-soft); }
+.footer-brand{ display:flex; justify-content:center; }
 .footer-note{ font-size:12.5px; color:var(--text-soft); margin:12px 0 0; }
+.footer-social{ display:flex; justify-content:center; gap:10px; margin-top:20px; flex-wrap:wrap; }
+.footer-social-btn{
+  display:flex; align-items:center; gap:7px; padding:9px 16px; border-radius:999px;
+  border:1px solid var(--gold-deep); background:none; color:var(--text-soft); font-size:12.5px;
+  text-decoration:none; cursor:pointer; font-family:inherit; transition:border-color .15s, color .15s;
+}
+.footer-social-btn:hover{ border-color:var(--gold); color:var(--gold-bright); }
 
 /* ============================= MODALES (genérico) ============================= */
 .modal-overlay{
@@ -292,15 +300,28 @@ input, select, textarea{ font-family:inherit; }
 .advisor-list{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
 .advisor-list[hidden]{ display:none; }
 .advisor-list button{
-  padding:12px 10px; border-radius:2px; border:1px solid var(--line); background:var(--bg);
+  padding:10px; border-radius:2px; border:1px solid var(--line); background:var(--bg);
   color:var(--text); font-size:13.5px; cursor:pointer; font-weight:500;
+  display:flex; align-items:center; gap:10px; text-align:left;
+}
+.advisor-btn-photo{
+  width:32px; height:32px; border-radius:50%; object-fit:cover; flex-shrink:0; background:var(--line);
+}
+.advisor-btn-photo-placeholder{
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-display);
+  color:var(--gold); background:var(--gold-deep);
+}
+.advisor-tag-photo{ width:22px; height:22px; border-radius:50%; object-fit:cover; flex-shrink:0; background:var(--line); }
+.advisor-tag-photo-placeholder{
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:11px;
+  color:var(--gold); background:var(--gold-deep);
 }
 .advisor-list button:hover{ border-color:var(--gold); background:rgba(201,162,39,.08); }
 .advisor-list button.chosen{ border-color:var(--gold); background:var(--gold); color:var(--bg); }
 .advisor-assigning{ font-size:13px; color:var(--text-soft); text-align:center; padding:10px; }
 .advisor-chosen-tag{
-  display:inline-block; background:rgba(201,162,39,.12); border:1px solid var(--gold); color:var(--gold-bright);
-  font-size:12px; padding:7px 13px; border-radius:999px; margin:0 0 16px;
+  display:flex; align-items:center; gap:9px; background:rgba(201,162,39,.12); border:1px solid var(--gold); color:var(--gold-bright);
+  font-size:12px; padding:7px 13px; border-radius:999px; margin:0 0 16px; width:fit-content;
 }
 .advisor-chosen-tag[hidden]{ display:none; }
 #checkoutForm[hidden]{ display:none; }
