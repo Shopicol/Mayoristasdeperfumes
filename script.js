@@ -89,6 +89,11 @@
 
     checkoutOverlay: document.getElementById("checkoutOverlay"),
     checkoutClose: document.getElementById("checkoutClose"),
+    advisorStep: document.getElementById("advisorStep"),
+    advisorYesBtn: document.getElementById("advisorYesBtn"),
+    advisorNoBtn: document.getElementById("advisorNoBtn"),
+    advisorList: document.getElementById("advisorList"),
+    advisorChosenTag: document.getElementById("advisorChosenTag"),
     checkoutForm: document.getElementById("checkoutForm"),
     custName: document.getElementById("custName"),
     custPhone: document.getElementById("custPhone"),
@@ -555,9 +560,16 @@
     el.custAddress.required = val === "Delivery";
   });
 
+  let chosenAdvisor = null; // { id, name, phone }
+
   function openCheckout() {
     closeCart();
-    el.checkoutForm.hidden = false;
+    chosenAdvisor = null;
+    el.advisorStep.hidden = false;
+    el.advisorList.hidden = true;
+    el.advisorList.innerHTML = "";
+    el.advisorChosenTag.hidden = true;
+    el.checkoutForm.hidden = true;
     el.checkoutSuccess.hidden = true;
     el.checkoutError.hidden = true;
     el.checkoutOverlay.hidden = false;
@@ -568,12 +580,57 @@
     document.body.style.overflow = "";
   }
   el.checkoutBtn.addEventListener("click", openCheckout);
+
+  function selectAdvisor(advisor) {
+    chosenAdvisor = advisor;
+    el.advisorStep.hidden = true;
+    el.checkoutForm.hidden = false;
+    el.advisorChosenTag.hidden = false;
+    el.advisorChosenTag.textContent = `Te atiende: ${advisor.name}`;
+  }
+
+  el.advisorYesBtn.addEventListener("click", async () => {
+    el.advisorYesBtn.disabled = true;
+    el.advisorYesBtn.textContent = "Cargando…";
+    const advisors = await fetchAdvisors();
+    el.advisorYesBtn.disabled = false;
+    el.advisorYesBtn.textContent = "Sí, ya tengo una";
+    if (!advisors.length) return;
+    el.advisorList.innerHTML = advisors.map(a => `<button type="button" data-advisor-id="${a.id}">${a.name}</button>`).join("");
+    el.advisorList.hidden = false;
+    el.advisorList.dataset.advisors = JSON.stringify(advisors);
+  });
+
+  el.advisorList.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-advisor-id]");
+    if (!btn) return;
+    const advisors = JSON.parse(el.advisorList.dataset.advisors || "[]");
+    const advisor = advisors.find(a => String(a.id) === btn.dataset.advisorId);
+    if (advisor) selectAdvisor(advisor);
+  });
+
+  el.advisorNoBtn.addEventListener("click", async () => {
+    el.advisorNoBtn.disabled = true;
+    el.advisorNoBtn.textContent = "Asignando…";
+    const advisor = await getNextAdvisor();
+    el.advisorNoBtn.disabled = false;
+    el.advisorNoBtn.textContent = "No, asígname una";
+    if (advisor) selectAdvisor(advisor);
+    else el.checkoutError.textContent = "No se pudo asignar una asesora. Intenta de nuevo.", (el.checkoutError.hidden = false);
+  });
+
   el.checkoutClose.addEventListener("click", closeCheckout);
   el.closeSuccessBtn.addEventListener("click", closeCheckout);
 
   el.checkoutForm.addEventListener("submit", async e => {
     e.preventDefault();
     el.checkoutError.hidden = true;
+
+    if (!chosenAdvisor) {
+      el.checkoutError.textContent = "Por favor selecciona o pide que te asignen una asesora primero.";
+      el.checkoutError.hidden = false;
+      return;
+    }
 
     if (el.custDelivery.value === "Delivery" && !el.custAddress.value.trim()) {
       el.checkoutError.textContent = "Por favor escribe tu dirección de entrega.";
@@ -623,13 +680,16 @@
       discount: 0,
       total,
       status: "nuevo",
+      advisor_name: chosenAdvisor ? chosenAdvisor.name : "",
+      advisor_phone: chosenAdvisor ? chosenAdvisor.phone : "",
     };
 
     try {
       await createOrder(order);
 
       const lines = [];
-      lines.push(`🧾 *Nuevo pedido — Mayoristas de Perfumes Venezuela*`);
+      lines.push(`🧾 *COMANDA — Mayoristas de Perfumes Venezuela*`);
+      if (chosenAdvisor) lines.push(`Asesora: *${chosenAdvisor.name}*`);
       lines.push("");
       items.forEach(i => lines.push(`• ${i.qty}x ${i.name} — ${money(i.price)} c/u`));
       lines.push("");
@@ -642,7 +702,8 @@
       lines.push(`Entrega: ${order.delivery_method}`);
       if (order.address) lines.push(`Dirección: ${order.address}`);
 
-      const rawNumber = typeof WHATSAPP_NUMBER !== "undefined" ? WHATSAPP_NUMBER : "";
+      const fallbackNumber = typeof WHATSAPP_NUMBER !== "undefined" ? WHATSAPP_NUMBER : "";
+      const rawNumber = (chosenAdvisor && chosenAdvisor.phone) || fallbackNumber;
       if (rawNumber && !rawNumber.includes("PEGA_AQUI")) {
         const waDigits = rawNumber.replace(/\D/g, "");
         const message = encodeURIComponent(lines.join("\n"));

@@ -159,7 +159,17 @@
     <h2>Completa tu pedido</h2>
     <p class="checkout-sub">Con estos datos armamos tu pedido y te contactamos por WhatsApp para confirmar.</p>
 
-    <form id="checkoutForm" class="checkout-form">
+    <div class="advisor-step" id="advisorStep">
+      <p class="advisor-question">¿Ya tienes una asesora de ventas?</p>
+      <div class="advisor-yesno">
+        <button type="button" id="advisorYesBtn">Sí, ya tengo una</button>
+        <button type="button" id="advisorNoBtn">No, asígname una</button>
+      </div>
+      <div class="advisor-list" id="advisorList" hidden><!-- filled by JS --></div>
+    </div>
+
+    <form id="checkoutForm" class="checkout-form" hidden>
+      <p class="advisor-chosen-tag" id="advisorChosenTag" hidden></p>
       <div class="checkout-fields-scroll">
         <label>
           <span>Nombre completo *</span>

@@ -97,6 +97,24 @@ async function fetchProductsByIds(ids) {
   return [];
 }
 
+async function fetchAdvisors() {
+  if (SUPABASE_READY) {
+    const { data, error } = await supabaseClient.from("advisors").select("*").eq("active", true).order("sort_order", { ascending: true });
+    if (!error && data) return data;
+    console.warn("No se pudieron leer las asesoras.", error);
+  }
+  return [];
+}
+
+async function getNextAdvisor() {
+  if (SUPABASE_READY) {
+    const { data, error } = await supabaseClient.rpc("get_next_advisor");
+    if (!error && data && data.length) return data[0];
+    console.warn("No se pudo asignar asesora por turno.", error);
+  }
+  return null;
+}
+
 async function createOrder(order) {
   if (SUPABASE_READY) {
     const { data, error } = await supabaseClient.from("orders").insert(order).select().maybeSingle();

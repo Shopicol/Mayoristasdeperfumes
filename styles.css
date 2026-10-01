@@ -280,6 +280,30 @@ input, select, textarea{ font-family:inherit; }
 .checkout-card{ display:block; max-width:480px; padding:32px 30px; }
 .checkout-card h2{ font-family:var(--font-display); font-size:23px; margin:0 0 8px; letter-spacing:.01em; }
 .checkout-sub{ font-size:13px; color:var(--text-soft); margin:0 0 18px; }
+
+.advisor-step{ margin-bottom:6px; }
+.advisor-question{ font-size:14px; font-weight:500; margin:0 0 12px; }
+.advisor-yesno{ display:flex; gap:10px; margin-bottom:12px; }
+.advisor-yesno button{
+  flex:1; padding:12px 10px; border-radius:2px; border:1px solid var(--line); background:var(--bg);
+  color:var(--text); font-size:13px; cursor:pointer;
+}
+.advisor-yesno button:hover{ border-color:var(--gold); color:var(--gold-bright); }
+.advisor-list{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+.advisor-list[hidden]{ display:none; }
+.advisor-list button{
+  padding:12px 10px; border-radius:2px; border:1px solid var(--line); background:var(--bg);
+  color:var(--text); font-size:13.5px; cursor:pointer; font-weight:500;
+}
+.advisor-list button:hover{ border-color:var(--gold); background:rgba(201,162,39,.08); }
+.advisor-list button.chosen{ border-color:var(--gold); background:var(--gold); color:var(--bg); }
+.advisor-assigning{ font-size:13px; color:var(--text-soft); text-align:center; padding:10px; }
+.advisor-chosen-tag{
+  display:inline-block; background:rgba(201,162,39,.12); border:1px solid var(--gold); color:var(--gold-bright);
+  font-size:12px; padding:7px 13px; border-radius:999px; margin:0 0 16px;
+}
+.advisor-chosen-tag[hidden]{ display:none; }
+#checkoutForm[hidden]{ display:none; }
 .checkout-fields-scroll{ max-height:48vh; overflow-y:auto; padding-right:4px; margin-bottom:6px; }
 .checkout-form label{ display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:500; color:var(--text-soft); margin-bottom:14px; letter-spacing:.02em; }
 .checkout-form input, .checkout-form select, .checkout-form textarea{
