@@ -47,6 +47,7 @@
     <button class="admin-tab" data-tab="products">Productos</button>
     <button class="admin-tab" data-tab="orders">Pedidos <span class="tab-badge" id="ordersBadge" hidden>0</span></button>
     <button class="admin-tab" data-tab="banners">Banners</button>
+    <button class="admin-tab" data-tab="advisors">Asesoras</button>
     <button class="admin-tab" data-tab="settings">Ajustes</button>
   </nav>
 
@@ -106,6 +107,28 @@
         <button id="newBannerBtn" class="btn-primary">+ Nuevo banner</button>
       </section>
       <div class="banners-list" id="bannersList"></div>
+    </div>
+
+    <!-- ============ TAB: ASESORAS ============ -->
+    <div class="admin-tab-panel" id="tabAdvisors" hidden>
+      <section class="admin-toolbar">
+        <p class="banners-hint">Las asesoras activas reciben clientes por turnos cuando alguien pide "asígname una". El orden de abajo es el orden del turno.</p>
+        <button id="newAdvisorBtn" class="btn-primary">+ Nueva asesora</button>
+      </section>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>WhatsApp</th>
+              <th>Orden</th>
+              <th>Activa</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="advisorsTableBody"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- ============ TAB: AJUSTES ============ -->
@@ -194,6 +217,31 @@
         </div>
       </div>
       <p class="form-message" id="productFormMessage" hidden></p>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL: ASESORA ============ -->
+<div class="modal-overlay" id="advisorModalOverlay" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="advisorModalClose">✕</button>
+    <h2 id="advisorModalTitle">Nueva asesora</h2>
+    <form id="advisorForm" class="product-form">
+      <input type="hidden" id="advisorFieldId">
+      <label><span>Nombre *</span><input type="text" id="advisorFieldName" required></label>
+      <label><span>WhatsApp (ej: 584121234567) *</span><input type="text" id="advisorFieldPhone" required></label>
+      <div class="form-row two">
+        <label><span>Orden del turno</span><input type="number" id="advisorFieldSort" value="0"></label>
+        <label class="checkbox-label"><input type="checkbox" id="advisorFieldActive" checked><span>Activa</span></label>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn-danger" id="deleteAdvisorBtn" hidden>Eliminar</button>
+        <div class="form-actions-right">
+          <button type="button" id="cancelAdvisorBtn">Cancelar</button>
+          <button type="submit" id="saveAdvisorBtn" class="btn-primary">Guardar</button>
+        </div>
+      </div>
+      <p class="form-message" id="advisorFormMessage" hidden></p>
     </form>
   </div>
 </div>

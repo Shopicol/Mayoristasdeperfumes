@@ -17,6 +17,22 @@
     tabProducts: document.getElementById("tabProducts"),
     tabOrders: document.getElementById("tabOrders"),
     tabBanners: document.getElementById("tabBanners"),
+    tabAdvisors: document.getElementById("tabAdvisors"),
+    advisorsTableBody: document.getElementById("advisorsTableBody"),
+    newAdvisorBtn: document.getElementById("newAdvisorBtn"),
+    advisorModalOverlay: document.getElementById("advisorModalOverlay"),
+    advisorModalClose: document.getElementById("advisorModalClose"),
+    advisorModalTitle: document.getElementById("advisorModalTitle"),
+    advisorForm: document.getElementById("advisorForm"),
+    advisorFieldId: document.getElementById("advisorFieldId"),
+    advisorFieldName: document.getElementById("advisorFieldName"),
+    advisorFieldPhone: document.getElementById("advisorFieldPhone"),
+    advisorFieldSort: document.getElementById("advisorFieldSort"),
+    advisorFieldActive: document.getElementById("advisorFieldActive"),
+    deleteAdvisorBtn: document.getElementById("deleteAdvisorBtn"),
+    cancelAdvisorBtn: document.getElementById("cancelAdvisorBtn"),
+    saveAdvisorBtn: document.getElementById("saveAdvisorBtn"),
+    advisorFormMessage: document.getElementById("advisorFormMessage"),
     tabSettings: document.getElementById("tabSettings"),
 
     statTotalProducts: document.getElementById("statTotalProducts"),
@@ -157,13 +173,14 @@
     loadProducts();
     loadOrders();
     loadBanners();
+    loadAdvisors();
     loadSettings();
   }
 
   /* ---------------------------------------------------------------
      Tabs
      --------------------------------------------------------------- */
-  const tabPanels = { summary: el.tabSummary, products: el.tabProducts, orders: el.tabOrders, banners: el.tabBanners, settings: el.tabSettings };
+  const tabPanels = { summary: el.tabSummary, products: el.tabProducts, orders: el.tabOrders, banners: el.tabBanners, advisors: el.tabAdvisors, settings: el.tabSettings };
   document.querySelectorAll(".admin-tab").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".admin-tab").forEach(b => b.classList.remove("active"));
@@ -553,6 +570,98 @@
     closeBannerModal();
     await loadBanners();
     showToast("Banner eliminado");
+  });
+
+  /* ---------------------------------------------------------------
+     ASESORAS
+     --------------------------------------------------------------- */
+  let allAdvisors = [];
+
+  async function loadAdvisors() {
+    const { data, error } = await supabaseClient.from("advisors").select("*").order("sort_order", { ascending: true });
+    if (error) { showToast("No se pudieron cargar las asesoras: " + error.message, true); return; }
+    allAdvisors = data || [];
+    renderAdvisorsTable();
+  }
+
+  function renderAdvisorsTable() {
+    el.advisorsTableBody.innerHTML = allAdvisors.map(a => `
+      <tr>
+        <td>${a.name}</td>
+        <td>${a.phone}</td>
+        <td>${a.sort_order}</td>
+        <td><span class="badge-avail ${a.active ? 'yes' : 'no'}">${a.active ? "Sí" : "No"}</span></td>
+        <td><button class="row-edit-btn" data-edit-advisor="${a.id}">Editar</button></td>
+      </tr>
+    `).join("");
+  }
+  el.advisorsTableBody.addEventListener("click", (e) => {
+    const id = e.target.closest("[data-edit-advisor]")?.dataset.editAdvisor;
+    if (id) openAdvisorModal(allAdvisors.find(a => String(a.id) === id));
+  });
+
+  function openAdvisorModal(advisor) {
+    el.advisorFormMessage.hidden = true;
+    if (advisor) {
+      el.advisorModalTitle.textContent = "Editar asesora";
+      el.advisorFieldId.value = advisor.id;
+      el.advisorFieldName.value = advisor.name || "";
+      el.advisorFieldPhone.value = advisor.phone || "";
+      el.advisorFieldSort.value = advisor.sort_order || 0;
+      el.advisorFieldActive.checked = Boolean(advisor.active);
+      el.deleteAdvisorBtn.hidden = false;
+    } else {
+      el.advisorModalTitle.textContent = "Nueva asesora";
+      el.advisorForm.reset();
+      el.advisorFieldId.value = "";
+      el.advisorFieldActive.checked = true;
+      el.deleteAdvisorBtn.hidden = true;
+    }
+    el.advisorModalOverlay.hidden = false;
+  }
+  function closeAdvisorModal() { el.advisorModalOverlay.hidden = true; }
+  el.newAdvisorBtn.addEventListener("click", () => openAdvisorModal(null));
+  el.advisorModalClose.addEventListener("click", closeAdvisorModal);
+  el.cancelAdvisorBtn.addEventListener("click", closeAdvisorModal);
+  el.advisorModalOverlay.addEventListener("click", (e) => { if (e.target === el.advisorModalOverlay) closeAdvisorModal(); });
+
+  el.advisorForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    el.advisorFormMessage.hidden = true;
+    el.saveAdvisorBtn.disabled = true;
+    el.saveAdvisorBtn.textContent = "Guardando…";
+    try {
+      const id = el.advisorFieldId.value;
+      const payload = {
+        name: el.advisorFieldName.value.trim(),
+        phone: el.advisorFieldPhone.value.trim().replace(/\D/g, ""),
+        sort_order: parseInt(el.advisorFieldSort.value, 10) || 0,
+        active: el.advisorFieldActive.checked,
+      };
+      let error;
+      if (id) ({ error } = await supabaseClient.from("advisors").update(payload).eq("id", id));
+      else ({ error } = await supabaseClient.from("advisors").insert(payload));
+      if (error) throw error;
+
+      closeAdvisorModal();
+      await loadAdvisors();
+      showToast("Asesora guardada ✓");
+    } catch (err) {
+      showMessage(el.advisorFormMessage, "No se pudo guardar: " + err.message, false);
+    } finally {
+      el.saveAdvisorBtn.disabled = false;
+      el.saveAdvisorBtn.textContent = "Guardar";
+    }
+  });
+
+  el.deleteAdvisorBtn.addEventListener("click", async () => {
+    const id = el.advisorFieldId.value;
+    if (!id || !window.confirm("¿Eliminar esta asesora?")) return;
+    const { error } = await supabaseClient.from("advisors").delete().eq("id", id);
+    if (error) { showToast("No se pudo eliminar: " + error.message, true); return; }
+    closeAdvisorModal();
+    await loadAdvisors();
+    showToast("Asesora eliminada");
   });
 
   /* ---------------------------------------------------------------
