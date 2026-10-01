@@ -66,6 +66,11 @@
     <div class="admin-tab-panel" id="tabProducts" hidden>
       <section class="admin-toolbar">
         <input type="text" id="adminSearch" placeholder="Buscar producto…">
+        <label class="no-photo-toggle">
+          <input type="checkbox" id="filterNoPhoto">
+          <span>Solo sin foto</span>
+          <span class="count-pill" id="noPhotoCount">0</span>
+        </label>
         <div class="admin-actions">
           <button id="newProductBtn" class="btn-primary">+ Nuevo producto</button>
         </div>

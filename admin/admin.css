@@ -52,6 +52,21 @@ input, select, textarea{ font-family:inherit; }
 
 /* ---- Toolbar / tabla ---- */
 .admin-toolbar{ display:flex; justify-content:space-between; align-items:center; gap:14px; margin-bottom:18px; flex-wrap:wrap; }
+
+.row-thumb-upload{ position:relative; display:block; width:38px; height:38px; cursor:pointer; }
+.row-thumb-upload .row-thumb{ width:38px; height:38px; border-radius:8px; object-fit:cover; background:var(--cream); display:block; }
+.row-thumb-cam{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  background:rgba(27,18,32,0); border-radius:8px; opacity:0; transition:opacity .15s, background .15s; font-size:14px;
+}
+.row-thumb-upload:hover .row-thumb-cam{ opacity:1; background:rgba(27,18,32,.55); }
+
+.no-photo-toggle{
+  display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-soft);
+  background:var(--paper); border:1.5px solid var(--line); border-radius:999px; padding:7px 14px; cursor:pointer;
+}
+.no-photo-toggle input{ margin:0; }
+.no-photo-toggle .count-pill{ background:var(--gold-soft); color:var(--ink); font-weight:700; border-radius:999px; padding:1px 8px; font-size:11.5px; }
 .admin-toolbar input{ flex:1; min-width:200px; padding:10px 14px; border-radius:10px; border:1.5px solid var(--line); font-size:13.5px; }
 .banners-hint{ font-size:13px; color:var(--ink-soft); margin:0; }
 .btn-primary{ background:var(--ink); color:var(--gold-bright); border:none; border-radius:10px; padding:11px 18px; font-weight:600; font-size:13.5px; }

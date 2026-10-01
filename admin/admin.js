@@ -26,6 +26,8 @@
     ordersBadge: document.getElementById("ordersBadge"),
 
     adminSearch: document.getElementById("adminSearch"),
+    filterNoPhoto: document.getElementById("filterNoPhoto"),
+    noPhotoCount: document.getElementById("noPhotoCount"),
     newProductBtn: document.getElementById("newProductBtn"),
     adminTableBody: document.getElementById("adminTableBody"),
 
@@ -190,6 +192,7 @@
     el.statTotalProducts.textContent = allProducts.length;
     el.statAvailProducts.textContent = allProducts.filter(p => p.avail).length;
     el.statOutProducts.textContent = allProducts.filter(p => !p.avail).length;
+    el.noPhotoCount.textContent = allProducts.filter(p => !p.image).length;
   }
 
   function buildCategoryDatalist() {
@@ -199,15 +202,24 @@
 
   function getFilteredProducts() {
     const q = (el.adminSearch.value || "").toLowerCase().trim();
-    if (!q) return allProducts;
-    return allProducts.filter(p => `${p.name} ${p.brand} ${p.category} ${p.ref}`.toLowerCase().includes(q));
+    let list = allProducts;
+    if (q) list = list.filter(p => `${p.name} ${p.brand} ${p.category} ${p.ref}`.toLowerCase().includes(q));
+    if (el.filterNoPhoto.checked) list = list.filter(p => !p.image);
+    return list;
   }
+  el.filterNoPhoto.addEventListener("change", renderTable);
 
   function renderTable() {
     const list = getFilteredProducts();
     el.adminTableBody.innerHTML = list.map(p => `
       <tr>
-        <td><img class="row-thumb" src="${p.image || ''}" alt=""></td>
+        <td>
+          <label class="row-thumb-upload" title="Clic para subir/cambiar foto">
+            <img class="row-thumb" src="${p.image || ''}" alt="">
+            <span class="row-thumb-cam">📷</span>
+            <input type="file" accept="image/*" data-quick-image="${p.id}" hidden>
+          </label>
+        </td>
         <td>${p.name}</td>
         <td>${p.category || "—"}</td>
         <td>${money(p.detal)}</td>
@@ -218,6 +230,40 @@
     `).join("");
   }
   el.adminSearch.addEventListener("input", renderTable);
+
+  // Subida rápida de foto directo desde la tabla, sin abrir el formulario
+  el.adminTableBody.addEventListener("change", async (e) => {
+    const input = e.target.closest("[data-quick-image]");
+    if (!input || !input.files[0]) return;
+    const id = input.dataset.quickImage;
+    const row = input.closest("tr");
+    const thumb = row.querySelector(".row-thumb");
+    const file = input.files[0];
+
+    row.style.opacity = "0.5";
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `product-${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
+      const { error: uploadError } = await supabaseClient.storage.from("product-images").upload(path, file, { upsert: false });
+      if (uploadError) throw uploadError;
+      const { data } = supabaseClient.storage.from("product-images").getPublicUrl(path);
+
+      const { error } = await supabaseClient.from("products").update({ image: data.publicUrl, updated_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+
+      thumb.src = data.publicUrl;
+      const p = allProducts.find(pp => String(pp.id) === id);
+      if (p) p.image = data.publicUrl;
+      paintStats();
+      if (el.filterNoPhoto.checked) row.remove();
+      showToast("Foto guardada ✓");
+    } catch (err) {
+      showToast("No se pudo subir: " + err.message, true);
+    } finally {
+      row.style.opacity = "1";
+    }
+  });
+
   el.adminTableBody.addEventListener("click", (e) => {
     const editId = e.target.closest("[data-edit]")?.dataset.edit;
     if (editId) openProductModal(allProducts.find(p => String(p.id) === editId));
