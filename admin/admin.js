@@ -48,7 +48,7 @@
     categoryOptions: document.getElementById("categoryOptions"),
     fieldRef: document.getElementById("fieldRef"),
     fieldAvail: document.getElementById("fieldAvail"),
-    fieldDetal: document.getElementById("fieldDetal"),
+    fieldMinQty: document.getElementById("fieldMinQty"),
     fieldMayor: document.getElementById("fieldMayor"),
     fieldOffer: document.getElementById("fieldOffer"),
     fieldStock: document.getElementById("fieldStock"),
@@ -222,8 +222,8 @@
         </td>
         <td>${p.name}</td>
         <td>${p.category || "—"}</td>
-        <td>${money(p.detal)}</td>
         <td>${money(p.mayor)}</td>
+        <td>${p.min_qty || 12}</td>
         <td><span class="badge-avail ${p.avail ? 'yes' : 'no'}">${p.avail ? "Sí" : "No"}</span></td>
         <td><button class="row-edit-btn" data-edit="${p.id}">Editar</button></td>
       </tr>
@@ -280,7 +280,7 @@
       el.fieldCategory.value = product.category || "";
       el.fieldRef.value = product.ref || "";
       el.fieldAvail.value = String(Boolean(product.avail));
-      el.fieldDetal.value = product.detal ?? "";
+      el.fieldMinQty.value = product.min_qty ?? 12;
       el.fieldMayor.value = product.mayor ?? "";
       el.fieldOffer.value = product.offer ?? "";
       el.fieldStock.value = product.stock ?? "";
@@ -339,7 +339,7 @@
         category: el.fieldCategory.value.trim(),
         ref: el.fieldRef.value.trim(),
         avail: el.fieldAvail.value === "true",
-        detal: parseFloat(el.fieldDetal.value) || 0,
+        min_qty: parseInt(el.fieldMinQty.value, 10) || 12,
         mayor: parseFloat(el.fieldMayor.value) || 0,
         offer: el.fieldOffer.value ? parseFloat(el.fieldOffer.value) : null,
         stock: el.fieldStock.value ? parseInt(el.fieldStock.value, 10) : null,
