@@ -119,6 +119,7 @@
         <table class="admin-table">
           <thead>
             <tr>
+              <th></th>
               <th>Nombre</th>
               <th>WhatsApp</th>
               <th>Orden</th>
@@ -230,6 +231,8 @@
       <input type="hidden" id="advisorFieldId">
       <label><span>Nombre *</span><input type="text" id="advisorFieldName" required></label>
       <label><span>WhatsApp (ej: 584121234567) *</span><input type="text" id="advisorFieldPhone" required></label>
+      <label><span>Foto</span><input type="file" id="advisorFieldImageFile" accept="image/*"></label>
+      <img id="advisorFieldImagePreview" class="image-preview" hidden>
       <div class="form-row two">
         <label><span>Orden del turno</span><input type="number" id="advisorFieldSort" value="0"></label>
         <label class="checkbox-label"><input type="checkbox" id="advisorFieldActive" checked><span>Activa</span></label>

@@ -27,6 +27,8 @@
     advisorFieldId: document.getElementById("advisorFieldId"),
     advisorFieldName: document.getElementById("advisorFieldName"),
     advisorFieldPhone: document.getElementById("advisorFieldPhone"),
+    advisorFieldImageFile: document.getElementById("advisorFieldImageFile"),
+    advisorFieldImagePreview: document.getElementById("advisorFieldImagePreview"),
     advisorFieldSort: document.getElementById("advisorFieldSort"),
     advisorFieldActive: document.getElementById("advisorFieldActive"),
     deleteAdvisorBtn: document.getElementById("deleteAdvisorBtn"),
@@ -576,6 +578,7 @@
      ASESORAS
      --------------------------------------------------------------- */
   let allAdvisors = [];
+  let pendingAdvisorImageFile = null;
 
   async function loadAdvisors() {
     const { data, error } = await supabaseClient.from("advisors").select("*").order("sort_order", { ascending: true });
@@ -587,6 +590,7 @@
   function renderAdvisorsTable() {
     el.advisorsTableBody.innerHTML = allAdvisors.map(a => `
       <tr>
+        <td><img class="row-thumb" src="${a.image || ''}" alt=""></td>
         <td>${a.name}</td>
         <td>${a.phone}</td>
         <td>${a.sort_order}</td>
@@ -601,6 +605,7 @@
   });
 
   function openAdvisorModal(advisor) {
+    pendingAdvisorImageFile = null;
     el.advisorFormMessage.hidden = true;
     if (advisor) {
       el.advisorModalTitle.textContent = "Editar asesora";
@@ -609,12 +614,15 @@
       el.advisorFieldPhone.value = advisor.phone || "";
       el.advisorFieldSort.value = advisor.sort_order || 0;
       el.advisorFieldActive.checked = Boolean(advisor.active);
+      if (advisor.image) { el.advisorFieldImagePreview.src = advisor.image; el.advisorFieldImagePreview.hidden = false; }
+      else el.advisorFieldImagePreview.hidden = true;
       el.deleteAdvisorBtn.hidden = false;
     } else {
       el.advisorModalTitle.textContent = "Nueva asesora";
       el.advisorForm.reset();
       el.advisorFieldId.value = "";
       el.advisorFieldActive.checked = true;
+      el.advisorFieldImagePreview.hidden = true;
       el.deleteAdvisorBtn.hidden = true;
     }
     el.advisorModalOverlay.hidden = false;
@@ -625,6 +633,24 @@
   el.cancelAdvisorBtn.addEventListener("click", closeAdvisorModal);
   el.advisorModalOverlay.addEventListener("click", (e) => { if (e.target === el.advisorModalOverlay) closeAdvisorModal(); });
 
+  el.advisorFieldImageFile.addEventListener("change", () => {
+    const file = el.advisorFieldImageFile.files[0];
+    if (!file) return;
+    pendingAdvisorImageFile = file;
+    el.advisorFieldImagePreview.src = URL.createObjectURL(file);
+    el.advisorFieldImagePreview.hidden = false;
+  });
+
+  async function uploadAdvisorImageIfNeeded(existingUrl) {
+    if (!pendingAdvisorImageFile) return existingUrl || "";
+    const ext = pendingAdvisorImageFile.name.split(".").pop();
+    const path = `advisor-${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
+    const { error } = await supabaseClient.storage.from("product-images").upload(path, pendingAdvisorImageFile, { upsert: false });
+    if (error) throw error;
+    const { data } = supabaseClient.storage.from("product-images").getPublicUrl(path);
+    return data.publicUrl;
+  }
+
   el.advisorForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     el.advisorFormMessage.hidden = true;
@@ -632,11 +658,14 @@
     el.saveAdvisorBtn.textContent = "Guardando…";
     try {
       const id = el.advisorFieldId.value;
+      const existing = id ? allAdvisors.find(a => String(a.id) === id) : null;
+      const imageUrl = await uploadAdvisorImageIfNeeded(existing?.image);
       const payload = {
         name: el.advisorFieldName.value.trim(),
         phone: el.advisorFieldPhone.value.trim().replace(/\D/g, ""),
         sort_order: parseInt(el.advisorFieldSort.value, 10) || 0,
         active: el.advisorFieldActive.checked,
+        image: imageUrl,
       };
       let error;
       if (id) ({ error } = await supabaseClient.from("advisors").update(payload).eq("id", id));
