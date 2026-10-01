@@ -236,18 +236,19 @@
      Marquee de marcas
      --------------------------------------------------------------- */
   function renderMarquee() {
-    const brands = Array.from(new Set(PRODUCTS.map(p => p.brand).filter(Boolean))).sort((a, b) => a.localeCompare(b, "es"));
-    const items = [...brands, ...brands]
-      .map(b => `<button type="button" data-marquee-brand="${b}">${b}</button>`)
+    const cats = Array.from(new Set(PRODUCTS.map(p => p.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, "es"));
+    const items = [...cats, ...cats]
+      .map(c => `<button type="button" data-marquee-category="${c}">${c}</button>`)
       .join("");
     el.marqueeTrack.innerHTML = items;
   }
   el.marqueeTrack.addEventListener("click", e => {
-    const btn = e.target.closest("[data-marquee-brand]");
+    const btn = e.target.closest("[data-marquee-category]");
     if (!btn) return;
-    state.brand = btn.dataset.marqueeBrand;
-    state.category = "Todas";
-    el.brandSelect.value = state.brand;
+    state.category = btn.dataset.marqueeCategory;
+    state.brand = "";
+    el.brandSelect.value = "";
+    renderCategoryChips();
     render();
     el.productGrid.scrollIntoView({ behavior: "smooth", block: "start" });
   });
