@@ -202,7 +202,7 @@
         <label><span>Cantidad mínima *</span><input type="number" id="fieldMinQty" step="1" min="1" value="12" required></label>
       </div>
       <label><span>Stock (opcional)</span><input type="number" id="fieldStock" step="1" min="0"></label>
-      <label><span>Nota interna</span><input type="text" id="fieldNote"></label>
+      <label><span>Descripción / contenido (la ve el cliente)</span><textarea id="fieldNote" rows="5" placeholder="Para una caja: escribe un perfume por línea"></textarea></label>
       <label class="checkbox-label">
         <input type="checkbox" id="fieldFeatured">
         <span>Destacado (aparece en el carrusel de la portada)</span>
@@ -260,10 +260,20 @@
       <label><span>Subtítulo</span><input type="text" id="bannerFieldSubtitle"></label>
       <label><span>Imagen</span><input type="file" id="bannerFieldImageFile" accept="image/*"></label>
       <img id="bannerFieldImagePreview" class="image-preview" hidden>
-      <div class="form-row two">
-        <label><span>Link (opcional)</span><input type="text" id="bannerFieldLink" placeholder="https://…"></label>
-        <label><span>Texto del botón</span><input type="text" id="bannerFieldButtonText" placeholder="Ver más"></label>
-      </div>
+      <label><span>Al hacer clic en el banner, ir a</span>
+        <select id="bannerFieldDest">
+          <option value="">Sin enlace</option>
+          <option value="categoria:Perfumes Femeninos">Dama (perfumes femeninos)</option>
+          <option value="categoria:Perfumes Masculinos">Caballero (perfumes masculinos)</option>
+          <option value="categoria:Unisex">Unisex</option>
+          <option value="categoria:Cajas / Combos">Cajas / Combos</option>
+          <option value="categoria:Todas">Ver todo el catálogo</option>
+          <option value="custom">Otro enlace (URL)…</option>
+        </select>
+      </label>
+      <label id="bannerCustomLinkWrap" hidden><span>Enlace (URL)</span><input type="text" id="bannerFieldLink" placeholder="https://…"></label>
+      <label><span>Texto del botón (opcional)</span><input type="text" id="bannerFieldButtonText" placeholder="Ver más"></label>
+      <p class="banner-size-hint">Tamaño recomendado de la imagen: 1600 × 500 px. Si dejas título y subtítulo vacíos, el banner se muestra solo como imagen y todo el banner es el botón.</p>
       <div class="form-row two">
         <label><span>Orden</span><input type="number" id="bannerFieldSort" value="0"></label>
         <label class="checkbox-label"><input type="checkbox" id="bannerFieldActive" checked><span>Activo</span></label>
