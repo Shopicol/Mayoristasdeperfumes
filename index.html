@@ -7,10 +7,15 @@
 <meta name="description" content="Perfumes al mayor y al detal en Venezuela — fragancias importadas directo para tu negocio.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Italiana&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Italiana&family=Jost:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+<!-- ============ CINTA SUPERIOR (categorías en movimiento) ============ -->
+<div class="brand-marquee">
+  <div class="marquee-track" id="marqueeTrack"><!-- filled by JS --></div>
+</div>
 
 <!-- ============ HEADER ============ -->
 <header class="site-header">
@@ -36,10 +41,9 @@
   </div>
 </header>
 
-<!-- ============ MARQUEE DE MARCAS ============ -->
-<div class="brand-marquee">
-  <div class="marquee-track" id="marqueeTrack"><!-- filled by JS --></div>
-</div>
+<!-- ============ BARRA DE CATEGORÍAS ============ -->
+<nav class="category-nav" id="categoryNav" aria-label="Categorías"><!-- filled by JS --></nav>
+
 
 <main>
   <!-- ============ BANNER / HERO ============ -->
@@ -50,13 +54,8 @@
     <div class="banner-dots" id="bannerDots"></div>
   </section>
 
-  <section class="hero">
-    <div class="hero-inner">
-      <p class="hero-eyebrow" id="eyebrowText">Venta al mayor — mínimo 12 unidades por pedido (puedes combinar fragancias)</p>
-      <h1 class="hero-title" id="heroTitle">Fragancias importadas,<br>directo para tu negocio.</h1>
-      <p class="hero-sub" id="heroSubtitle">Perfumería al por mayor en Venezuela — precios especiales desde tu primera compra.</p>
-    </div>
-  </section>
+  <!-- Espacio de categorías (se ve mientras no haya banners cargados en el admin) -->
+  <section class="category-tiles" id="categoryTiles" hidden></section>
 
   <!-- ============ DESTACADOS ============ -->
   <section class="featured-section" id="featuredSection" hidden>
@@ -139,6 +138,10 @@
           <button type="button" id="modalQtyPlus" aria-label="Sumar">+</button>
         </div>
         <button class="btn-add-cart" id="modalAddCart">Agregar al carrito</button>
+      </div>
+      <div class="modal-description" id="modalDescription" hidden>
+        <h3>Detalle</h3>
+        <p id="modalDescriptionText"></p>
       </div>
     </div>
   </div>

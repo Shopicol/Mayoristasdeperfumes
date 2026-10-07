@@ -49,9 +49,9 @@
     bannerNext: document.getElementById("bannerNext"),
     bannerDots: document.getElementById("bannerDots"),
 
-    eyebrowText: document.getElementById("eyebrowText"),
-    heroTitle: document.getElementById("heroTitle"),
-    heroSubtitle: document.getElementById("heroSubtitle"),
+    eyebrowText: document.getElementById("eyebrowText") || document.createElement("p"),
+    heroTitle: document.getElementById("heroTitle") || document.createElement("h1"),
+    heroSubtitle: document.getElementById("heroSubtitle") || document.createElement("p"),
 
     featuredSection: document.getElementById("featuredSection"),
     featuredScroll: document.getElementById("featuredScroll"),
@@ -74,6 +74,8 @@
     modalPriceOld: document.getElementById("modalPriceOld"),
     modalQty: document.getElementById("modalQty"),
     modalMinQtyNote: document.getElementById("modalMinQtyNote"),
+    modalDescription: document.getElementById("modalDescription"),
+    modalDescriptionText: document.getElementById("modalDescriptionText"),
     modalQtyMinus: document.getElementById("modalQtyMinus"),
     modalQtyPlus: document.getElementById("modalQtyPlus"),
     modalAddCart: document.getElementById("modalAddCart"),
@@ -264,23 +266,107 @@
   /* ---------------------------------------------------------------
      Marquee de marcas
      --------------------------------------------------------------- */
-  function renderMarquee() {
-    const cats = Array.from(new Set(PRODUCTS.map(p => p.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, "es"));
-    const items = [...cats, ...cats]
-      .map(c => `<button type="button" data-marquee-category="${c}">${c}</button>`)
-      .join("");
-    el.marqueeTrack.innerHTML = items;
+  /* Categorías: orden fijo y nombres cortos (Dama · Caballero · Unisex · Cajas) */
+  const CAT_ORDER = ["Perfumes Femeninos", "Perfumes Masculinos", "Unisex", "Cajas / Combos"];
+  const CAT_LABEL = { "Perfumes Femeninos": "Dama", "Perfumes Masculinos": "Caballero", "Unisex": "Unisex", "Cajas / Combos": "Cajas" };
+  const CAT_SUB = { "Perfumes Femeninos": "Perfumes femeninos", "Perfumes Masculinos": "Perfumes masculinos", "Unisex": "Para todos", "Cajas / Combos": "Combos y cajas" };
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
-  el.marqueeTrack.addEventListener("click", e => {
-    const btn = e.target.closest("[data-marquee-category]");
-    if (!btn) return;
-    state.category = btn.dataset.marqueeCategory;
+  function catLabel(c) { return CAT_LABEL[c] || c; }
+  function orderedCategories() {
+    const present = new Set(PRODUCTS.map(p => p.category).filter(Boolean));
+    const known = CAT_ORDER.filter(c => present.has(c));
+    const extra = Array.from(present).filter(c => !CAT_ORDER.includes(c)).sort((a, b) => a.localeCompare(b, "es"));
+    return [...known, ...extra];
+  }
+
+  // Un solo lugar para "ir a una categoría": lo usan la barra, la cinta, las
+  // casillas del espacio de banner y los banners con clic.
+  function goCategory(cat) {
+    state.category = cat || "Todas";
     state.brand = "";
     el.brandSelect.value = "";
     renderCategoryChips();
     render();
     el.productGrid.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function goHome() {
+    state.query = "";
+    el.searchInput.value = "";
+    el.searchClear.hidden = true;
+    state.category = "Todas";
+    state.brand = "";
+    el.brandSelect.value = "";
+    renderCategoryChips();
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  /* Cinta superior en movimiento */
+  function renderMarquee() {
+    const cats = orderedCategories();
+    if (!cats.length) { el.marqueeTrack.innerHTML = ""; return; }
+    const half = Array.from({ length: 6 }, () => cats).flat();   // 6 vueltas por mitad: nunca quedan huecos
+    el.marqueeTrack.innerHTML = [...half, ...half]
+      .map(c => `<button type="button" data-marquee-category="${esc(c)}">${esc(catLabel(c))}</button>`).join("");
+  }
+  el.marqueeTrack.addEventListener("click", e => {
+    const btn = e.target.closest("[data-marquee-category]");
+    if (btn) goCategory(btn.dataset.marqueeCategory);
   });
+
+  /* Barra de categorías (bajo el encabezado) */
+  function renderCategoryNav() {
+    const nav = document.getElementById("categoryNav");
+    if (!nav) return;
+    nav.innerHTML = `<button type="button" data-nav-cat="__home">Inicio</button>` +
+      orderedCategories().map(c => `<button type="button" data-nav-cat="${esc(c)}">${esc(catLabel(c))}</button>`).join("");
+    syncCategoryNav();
+  }
+  function syncCategoryNav() {
+    const nav = document.getElementById("categoryNav");
+    if (!nav) return;
+    nav.querySelectorAll("[data-nav-cat]").forEach(b => {
+      const c = b.dataset.navCat;
+      b.classList.toggle("active", c === "__home" ? state.category === "Todas" && !state.brand && !state.query : c === state.category);
+    });
+  }
+  document.getElementById("categoryNav")?.addEventListener("click", e => {
+    const btn = e.target.closest("[data-nav-cat]");
+    if (!btn) return;
+    if (btn.dataset.navCat === "__home") goHome();
+    else goCategory(btn.dataset.navCat);
+  });
+
+  /* Espacio de banner por defecto: casillas grandes con clic a cada categoría
+     (se oculta solo cuando cargas banners propios en el admin) */
+  function renderCategoryTiles() {
+    const box = document.getElementById("categoryTiles");
+    if (!box) return;
+    const counts = {};
+    PRODUCTS.forEach(p => { counts[p.category] = (counts[p.category] || 0) + 1; });
+    box.innerHTML = orderedCategories().map(c =>
+      `<button type="button" class="cat-tile" data-tile-cat="${esc(c)}"><span class="t-name">${esc(catLabel(c))}</span><span class="t-sub">${esc(CAT_SUB[c] || "Ver productos")} · ${counts[c]}</span></button>`
+    ).join("");
+    syncBannerArea();
+  }
+  function syncBannerArea() {
+    const box = document.getElementById("categoryTiles");
+    if (box) box.hidden = banners.length > 0 || !box.children.length;
+  }
+  document.getElementById("categoryTiles")?.addEventListener("click", e => {
+    const t = e.target.closest("[data-tile-cat]");
+    if (t) goCategory(t.dataset.tileCat);
+  });
+
+  // Si el link trae ?categoria=Perfumes%20Femeninos, abre directo en esa categoría
+  function applyCategoryFromURL() {
+    const wanted = (new URLSearchParams(window.location.search).get("categoria") || "").trim().toLowerCase();
+    if (!wanted) return;
+    const match = orderedCategories().find(c => c.toLowerCase() === wanted || catLabel(c).toLowerCase() === wanted);
+    if (match) state.category = match;
+  }
 
   // Flechas de "ver anteriores/siguientes" en carruseles horizontales
   document.addEventListener("click", e => {
@@ -300,20 +386,39 @@
   let banners = [];
   function renderBanners(data) {
     banners = data || [];
-    if (!banners.length) { el.bannerCarousel.hidden = true; return; }
+    if (!banners.length) { el.bannerCarousel.hidden = true; syncBannerArea(); return; }
     el.bannerCarousel.hidden = false;
-    el.bannerTrack.innerHTML = banners.map(b => `
-      <div class="banner-slide" style="background-image:url('${b.image || ''}')">
-        <div class="banner-slide-content">
-          <h3>${b.title || ""}</h3>
-          <p>${b.subtitle || ""}</p>
-          ${b.link_url ? `<a href="${b.link_url}">${b.button_text || "Ver más"}</a>` : ""}
-        </div>
-      </div>
-    `).join("");
+    el.bannerTrack.innerHTML = banners.map(b => {
+      const hasText = !!((b.title || "").trim() || (b.subtitle || "").trim());
+      const link = (b.link_url || "").trim();
+      const showBtn = !!link && (hasText || !!(b.button_text || "").trim());
+      return `
+      <div class="banner-slide${hasText ? " has-text" : ""}${link ? " is-link" : ""}" style="background-image:url('${esc(b.image || "")}')"${link ? ` data-link="${esc(link)}" role="link" tabindex="0"` : ""}>
+        ${hasText || showBtn ? `<div class="banner-slide-content">
+          ${b.title ? `<h3>${esc(b.title)}</h3>` : ""}
+          ${b.subtitle ? `<p>${esc(b.subtitle)}</p>` : ""}
+          ${showBtn ? `<span class="banner-btn">${esc(b.button_text || "Ver más")}</span>` : ""}
+        </div>` : ""}
+      </div>`;
+    }).join("");
     el.bannerDots.innerHTML = banners.map((_, i) => `<button data-dot="${i}" class="${i === 0 ? 'active' : ''}"></button>`).join("");
     updateBannerPosition();
+    syncBannerArea();
   }
+  function openBannerLink(link) {
+    if (link.startsWith("categoria:")) { goCategory(link.slice(10).trim()); return; }
+    if (/^https?:\/\//i.test(link) && !link.startsWith(window.location.origin)) window.open(link, "_blank", "noopener");
+    else window.location.href = link;
+  }
+  el.bannerTrack.addEventListener("click", e => {
+    const s = e.target.closest("[data-link]");
+    if (s) openBannerLink(s.dataset.link);
+  });
+  el.bannerTrack.addEventListener("keydown", e => {
+    if (e.key !== "Enter") return;
+    const s = e.target.closest("[data-link]");
+    if (s) openBannerLink(s.dataset.link);
+  });
   function updateBannerPosition() {
     el.bannerTrack.style.transform = `translateX(-${bannerIndex * 100}%)`;
     el.bannerDots.querySelectorAll("button").forEach((d, i) => d.classList.toggle("active", i === bannerIndex));
@@ -411,9 +516,8 @@
      Filtros (categorías, marcas, orden)
      --------------------------------------------------------------- */
   function renderCategoryChips() {
-    const cats = Array.from(new Set(PRODUCTS.map(p => p.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, "es"));
-    const all = ["Todas", ...cats];
-    el.categoryChips.innerHTML = all.map(c => `<button data-cat="${c}" class="${c === state.category ? 'active' : ''}">${c === 'Todas' ? 'Ver Todos' : c}</button>`).join("");
+    const all = ["Todas", ...orderedCategories()];
+    el.categoryChips.innerHTML = all.map(c => `<button data-cat="${esc(c)}" class="${c === state.category ? 'active' : ''}">${c === 'Todas' ? 'Ver Todos' : esc(catLabel(c))}</button>`).join("");
   }
   el.categoryChips.addEventListener("click", e => {
     const btn = e.target.closest("[data-cat]");
@@ -472,6 +576,7 @@
   }
 
   function render() {
+    syncCategoryNav();
     const list = getFilteredProducts();
     el.resultsCount.textContent = `Mostrando ${list.length} de ${PRODUCTS.length} productos`;
     if (!list.length) {
@@ -507,6 +612,11 @@
     el.modalQty.textContent = modalQtyValue;
     el.modalMinQtyNote.hidden = modalMinQty <= 1;
     el.modalMinQtyNote.textContent = modalMinQty > 1 ? "Cuenta para tu surtido mínimo de 12 unidades — puedes combinarlo con otros perfumes" : "";
+    const detail = (p.note || "").trim();
+    el.modalDescription.hidden = !detail;
+    el.modalDescriptionText.textContent = detail;
+    const modalBodyEl = el.modalDescription.closest(".modal-body");
+    if (modalBodyEl) modalBodyEl.scrollTop = 0;
     el.modalAddCart.disabled = !avail;
     el.modalAddCart.textContent = avail ? "Agregar al carrito" : "Agotado";
 
@@ -766,7 +876,10 @@
     siteSettings = settings;
     applySettings(settings);
 
+    applyCategoryFromURL();
     renderMarquee();
+    renderCategoryNav();
+    renderCategoryTiles();
     renderBanners(bannerData);
     renderCategoryChips();
     renderBrandOptions();

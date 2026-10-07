@@ -74,17 +74,17 @@ input, select, textarea{ font-family:inherit; }
 
 /* ============================= CINTA DE CATEGORÍAS ============================= */
 .brand-marquee{
-  background:#0C0906; overflow:hidden; white-space:nowrap; padding:14px 0;
-  border-top:1px solid var(--gold-deep); border-bottom:1px solid var(--gold-deep);
+  background:#0C0906; overflow:hidden; white-space:nowrap; padding:13px 0;
+  border-bottom:1px solid var(--gold-deep);
 }
-.marquee-track{ display:inline-flex; gap:0; animation:scroll-marquee 30s linear infinite; }
+.marquee-track{ display:inline-flex; gap:0; animation:scroll-marquee 36s linear infinite; }
 .marquee-track button{
-  font-family:var(--font-display); font-size:16px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-soft);
-  padding:0 28px; display:inline-flex; align-items:center; gap:28px; opacity:.85;
-  border:none; background:none; cursor:pointer; transition:color .15s, opacity .15s;
+  font-family:"Montserrat", sans-serif; font-weight:800; font-size:15px; letter-spacing:.16em; text-transform:uppercase;
+  color:#F5EBD0; padding:0 30px; display:inline-flex; align-items:center; gap:30px;
+  border:none; background:none; cursor:pointer; transition:color .15s;
 }
-.marquee-track button:hover{ color:var(--gold-bright); opacity:1; }
-.marquee-track button::after{ content:"✦"; font-size:9px; color:var(--gold); opacity:.8; }
+.marquee-track button:hover{ color:#E8C468; }
+.marquee-track button::after{ content:"✦"; font-size:11px; color:#E8C468; }
 @keyframes scroll-marquee{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
 
 /* ============================= BANNER ============================= */
@@ -94,7 +94,9 @@ input, select, textarea{ font-family:inherit; }
   flex:0 0 100%; min-height:340px; display:flex; flex-direction:column; justify-content:center;
   padding:44px 52px; background-size:cover; background-position:center; position:relative; color:var(--text);
 }
-.banner-slide::before{ content:""; position:absolute; inset:0; background:linear-gradient(90deg, rgba(10,7,4,.85), rgba(10,7,4,.25)); }
+.banner-slide{ color:#F5EBD0; }
+.banner-slide.has-text::before{ content:""; position:absolute; inset:0; background:linear-gradient(90deg, rgba(10,7,4,.85), rgba(10,7,4,.25)); }
+.banner-slide.is-link{ cursor:pointer; }
 .banner-slide-content{ position:relative; z-index:1; max-width:460px; }
 .banner-slide h3{ font-family:var(--font-display); font-size:clamp(24px,3.4vw,36px); margin:0 0 10px; letter-spacing:.02em; }
 .banner-slide p{ font-size:14px; margin:0 0 18px; opacity:.85; }
@@ -229,7 +231,7 @@ input, select, textarea{ font-family:inherit; }
   background:var(--bg-card); border:1px solid var(--line); border-radius:4px; max-width:720px; width:100%; max-height:88vh; overflow:auto;
   display:grid; grid-template-columns:1fr; position:relative; box-shadow:var(--shadow-lg);
 }
-@media(min-width:600px){ .modal-card{ grid-template-columns:1fr 1fr; max-height:520px; } }
+@media(min-width:600px){ .modal-card{ grid-template-columns:1fr 1fr; grid-template-rows:minmax(0,1fr); max-height:560px; } }
 .modal-close{
   position:absolute; top:14px; right:14px; background:rgba(10,7,4,.6); border:1px solid var(--line); border-radius:50%;
   width:32px; height:32px; cursor:pointer; z-index:5; font-size:14px; color:var(--text);
@@ -354,3 +356,53 @@ input, select, textarea{ font-family:inherit; }
   .hero{ padding-top:40px; }
   .banner-slide{ min-height:260px; padding:32px 28px; }
 }
+
+/* ---- Detalle del producto / contenido de las cajas ---- */
+.modal-description{ margin-top:22px; padding-top:16px; border-top:1px solid var(--line); }
+.modal-description[hidden]{ display:none; }
+.modal-description h3{ font-family:var(--font-body); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold); margin:0 0 9px; font-weight:600; }
+.modal-description p{ margin:0; font-size:12.5px; line-height:1.7; color:var(--text-soft); white-space:pre-line; }
+
+
+/* ============================= BARRA DE CATEGORÍAS (como en Shopicol) ============================= */
+.category-nav{
+  background:var(--gold); display:flex; justify-content:center; flex-wrap:nowrap;
+  gap:4px; padding:0 16px; overflow-x:auto; scrollbar-width:none;
+}
+.category-nav::-webkit-scrollbar{ display:none; }
+.category-nav button{
+  background:none; border:none; color:#111; font-family:"Montserrat", sans-serif; font-size:13.5px; font-weight:700;
+  letter-spacing:.12em; text-transform:uppercase; padding:16px 24px; cursor:pointer; white-space:nowrap;
+  border-bottom:3px solid transparent; transition:border-color .15s, background .15s;
+}
+.category-nav button:hover{ background:rgba(0,0,0,.08); }
+.category-nav button.active{ border-bottom-color:#111; background:rgba(0,0,0,.10); }
+@media (max-width:760px){ .category-nav{ justify-content:flex-start; } .category-nav button{ padding:14px 16px; font-size:12.5px; } }
+
+/* ============================= ESPACIO DE BANNER: casillas con clic a cada categoría ============================= */
+.category-tiles{
+  max-width:1280px; margin:22px auto 0; padding:0 28px;
+  display:grid; grid-template-columns:repeat(4,1fr); gap:16px;
+}
+.category-tiles[hidden]{ display:none; }
+.cat-tile{
+  min-height:170px; border:1px solid var(--gold-deep); border-radius:4px; cursor:pointer;
+  background:linear-gradient(135deg,#15100A,#2A2015); color:#F5EBD0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:16px;
+  transition:transform .2s, border-color .2s, box-shadow .2s;
+}
+.cat-tile:hover{ transform:translateY(-3px); border-color:var(--gold); box-shadow:var(--shadow-lg); }
+.cat-tile .t-name{ font-family:var(--font-display); font-size:34px; letter-spacing:.08em; text-transform:uppercase; color:#E8C468; }
+.cat-tile .t-sub{ font-family:"Montserrat", sans-serif; font-weight:700; font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; opacity:.85; text-align:center; }
+@media (max-width:760px){
+  .category-tiles{ grid-template-columns:1fr 1fr; padding:0 16px; gap:10px; margin-top:16px; }
+  .cat-tile{ min-height:118px; }
+  .cat-tile .t-name{ font-size:26px; }
+}
+
+/* botón del banner (todo el banner es clicable) */
+.banner-btn{
+  display:inline-block; background:var(--gold); color:#111; padding:11px 26px; border-radius:2px;
+  font-family:"Montserrat", sans-serif; font-weight:700; font-size:12.5px; letter-spacing:.1em; text-transform:uppercase;
+}
+@media (max-width:640px){ .marquee-track button{ font-size:12.5px; padding:0 22px; gap:22px; } }
