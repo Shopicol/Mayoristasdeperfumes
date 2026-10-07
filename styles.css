@@ -95,7 +95,11 @@ input, select, textarea{ font-family:inherit; }
   padding:44px 52px; background-size:cover; background-position:center; position:relative; color:var(--text);
 }
 .banner-slide{ color:#F5EBD0; }
-.banner-slide.has-text::before{ content:""; position:absolute; inset:0; background:linear-gradient(90deg, rgba(10,7,4,.85), rgba(10,7,4,.25)); }
+.banner-slide.has-text::before{ content:""; position:absolute; inset:0; background:linear-gradient(90deg, rgba(10,7,4,.6) 0%, rgba(10,7,4,.18) 55%, rgba(10,7,4,0) 100%); }
+/* Banner solo imagen: proporción fija 16:5, imagen completa (nunca recortada) y bordes difuminados si no coincide */
+.banner-slide.image-only{ aspect-ratio:16 / 5; min-height:0; padding:0; background:#0C0906; overflow:hidden; display:block; }
+.banner-slide.image-only .banner-bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:blur(22px) brightness(.9); transform:scale(1.15); }
+.banner-slide.image-only .banner-img{ position:relative; display:block; width:100%; height:100%; object-fit:contain; }
 .banner-slide.is-link{ cursor:pointer; }
 .banner-slide-content{ position:relative; z-index:1; max-width:460px; }
 .banner-slide h3{ font-family:var(--font-display); font-size:clamp(24px,3.4vw,36px); margin:0 0 10px; letter-spacing:.02em; }
@@ -406,3 +410,10 @@ input, select, textarea{ font-family:inherit; }
   font-family:"Montserrat", sans-serif; font-weight:700; font-size:12.5px; letter-spacing:.1em; text-transform:uppercase;
 }
 @media (max-width:640px){ .marquee-track button{ font-size:12.5px; padding:0 22px; gap:22px; } }
+
+/* flechas más discretas en celular, para no tapar el banner */
+@media (max-width:640px){
+  .banner-nav{ width:28px; height:28px; font-size:15px; }
+  .banner-nav.prev{ left:6px; } .banner-nav.next{ right:6px; }
+  .banner-dots{ bottom:6px; }
+}

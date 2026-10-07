@@ -388,22 +388,37 @@
     banners = data || [];
     if (!banners.length) { el.bannerCarousel.hidden = true; syncBannerArea(); return; }
     el.bannerCarousel.hidden = false;
-    el.bannerTrack.innerHTML = banners.map(b => {
+    el.bannerTrack.innerHTML = banners.map((b, i) => {
       const hasText = !!((b.title || "").trim() || (b.subtitle || "").trim());
       const link = (b.link_url || "").trim();
-      const showBtn = !!link && (hasText || !!(b.button_text || "").trim());
+      const linkAttrs = link ? ` data-link="${esc(link)}" role="link" tabindex="0"` : "";
+      const label = esc((b.title || "").trim() || "Banner");
+
+      // Banner con texto propio: foto de fondo + velo suave + título/botón
+      if (hasText) {
+        const showBtn = !!link;
+        return `
+        <div class="banner-slide has-text${link ? " is-link" : ""}" style="background-image:url('${esc(b.image || "")}')"${linkAttrs}>
+          <div class="banner-slide-content">
+            ${b.title ? `<h3>${esc(b.title)}</h3>` : ""}
+            ${b.subtitle ? `<p>${esc(b.subtitle)}</p>` : ""}
+            ${showBtn ? `<span class="banner-btn">${esc(b.button_text || "Ver más")}</span>` : ""}
+          </div>
+        </div>`;
+      }
+
+      // Banner solo imagen (la imagen ya trae su texto): se ve completa, sin velo ni recortes
+      const eager = i === 0 ? 'fetchpriority="high"' : 'loading="lazy"';
       return `
-      <div class="banner-slide${hasText ? " has-text" : ""}${link ? " is-link" : ""}" style="background-image:url('${esc(b.image || "")}')"${link ? ` data-link="${esc(link)}" role="link" tabindex="0"` : ""}>
-        ${hasText || showBtn ? `<div class="banner-slide-content">
-          ${b.title ? `<h3>${esc(b.title)}</h3>` : ""}
-          ${b.subtitle ? `<p>${esc(b.subtitle)}</p>` : ""}
-          ${showBtn ? `<span class="banner-btn">${esc(b.button_text || "Ver más")}</span>` : ""}
-        </div>` : ""}
+      <div class="banner-slide image-only${link ? " is-link" : ""}"${linkAttrs} aria-label="${label}">
+        <img class="banner-bg" src="${esc(b.image || "")}" alt="" aria-hidden="true" ${eager}>
+        <img class="banner-img" src="${esc(b.image || "")}" alt="${label}" ${eager}>
       </div>`;
     }).join("");
     el.bannerDots.innerHTML = banners.map((_, i) => `<button data-dot="${i}" class="${i === 0 ? 'active' : ''}"></button>`).join("");
     updateBannerPosition();
     syncBannerArea();
+    startBannerAuto();
   }
   function openBannerLink(link) {
     if (link.startsWith("categoria:")) { goCategory(link.slice(10).trim()); return; }
@@ -423,6 +438,34 @@
     el.bannerTrack.style.transform = `translateX(-${bannerIndex * 100}%)`;
     el.bannerDots.querySelectorAll("button").forEach((d, i) => d.classList.toggle("active", i === bannerIndex));
   }
+  // Avance automático cada 6 s (se pausa al pasar el mouse o tocar) + deslizar con el dedo
+  let bannerTimer = null;
+  function stopBannerAuto() { if (bannerTimer) { clearInterval(bannerTimer); bannerTimer = null; } }
+  function startBannerAuto() {
+    stopBannerAuto();
+    if (banners.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    bannerTimer = setInterval(() => {
+      bannerIndex = (bannerIndex + 1) % banners.length;
+      updateBannerPosition();
+    }, 6000);
+  }
+  el.bannerCarousel.addEventListener("mouseenter", stopBannerAuto);
+  el.bannerCarousel.addEventListener("mouseleave", startBannerAuto);
+  document.addEventListener("visibilitychange", () => (document.hidden ? stopBannerAuto() : startBannerAuto()));
+  let bannerTouchX = null;
+  el.bannerCarousel.addEventListener("touchstart", e => { bannerTouchX = e.touches[0].clientX; stopBannerAuto(); }, { passive: true });
+  el.bannerCarousel.addEventListener("touchend", e => {
+    if (bannerTouchX !== null) {
+      const dx = e.changedTouches[0].clientX - bannerTouchX;
+      if (Math.abs(dx) > 40 && banners.length > 1) {
+        bannerIndex = (bannerIndex + (dx < 0 ? 1 : -1) + banners.length) % banners.length;
+        updateBannerPosition();
+      }
+      bannerTouchX = null;
+    }
+    startBannerAuto();
+  }, { passive: true });
+
   el.bannerPrev.addEventListener("click", () => {
     bannerIndex = (bannerIndex - 1 + banners.length) % banners.length;
     updateBannerPosition();
