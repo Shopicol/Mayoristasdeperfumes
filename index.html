@@ -212,9 +212,19 @@
             <option value="Binance">Binance</option>
             <option value="Zelle">Zelle</option>
             <option value="Efectivo">Efectivo</option>
+            <option value="Pagar después">Pagar después</option>
           </select>
         </label>
         <div class="payment-details-box" id="paymentDetailsBox" hidden></div>
+        <label id="payRefWrap" hidden>
+          <span>Número de referencia del pago *</span>
+          <input type="text" id="custPayRef" placeholder="Ej: 123456">
+          <small class="field-hint">Si aún no has pagado, elige «Pagar después».</small>
+        </label>
+        <div class="pay-later-note" id="payLaterNote" hidden>
+          <strong>Los pedidos pagados se toman más rápidamente.</strong>
+          Puedes pagar después: tu pedido queda registrado y, cuando pagues, avísale a tu asesora por WhatsApp.
+        </div>
 
         <label>
           <span>Método de entrega *</span>

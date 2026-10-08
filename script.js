@@ -103,6 +103,9 @@
     custEmail: document.getElementById("custEmail"),
     custPayment: document.getElementById("custPayment"),
     paymentDetailsBox: document.getElementById("paymentDetailsBox"),
+    payRefWrap: document.getElementById("payRefWrap"),
+    custPayRef: document.getElementById("custPayRef"),
+    payLaterNote: document.getElementById("payLaterNote"),
     custDelivery: document.getElementById("custDelivery"),
     addressField: document.getElementById("addressField"),
     custAddress: document.getElementById("custAddress"),
@@ -393,12 +396,14 @@
       const link = (b.link_url || "").trim();
       const linkAttrs = link ? ` data-link="${esc(link)}" role="link" tabindex="0"` : "";
       const label = esc((b.title || "").trim() || "Banner");
+      const desktop = b.image || "", mobile = (b.image_mobile || "").trim();
+      const hasMobile = !!mobile;
 
       // Banner con texto propio: foto de fondo + velo suave + título/botón
       if (hasText) {
         const showBtn = !!link;
         return `
-        <div class="banner-slide has-text${link ? " is-link" : ""}" style="background-image:url('${esc(b.image || "")}')"${linkAttrs}>
+        <div class="banner-slide has-text${link ? " is-link" : ""}${hasMobile ? " has-mobile" : ""}" style="--bg:url('${esc(desktop)}');${hasMobile ? `--bg-m:url('${esc(mobile)}');` : ""}"${linkAttrs}>
           <div class="banner-slide-content">
             ${b.title ? `<h3>${esc(b.title)}</h3>` : ""}
             ${b.subtitle ? `<p>${esc(b.subtitle)}</p>` : ""}
@@ -407,12 +412,14 @@
         </div>`;
       }
 
-      // Banner solo imagen (la imagen ya trae su texto): se ve completa, sin velo ni recortes
-      const eager = i === 0 ? 'fetchpriority="high"' : 'loading="lazy"';
+      // Banner solo imagen (la imagen ya trae su texto): se ve completo, sin velo ni recortes.
+      // Si subiste una imagen especial para celular, el celular usa esa.
+      const load = i === 0 ? 'fetchpriority="high"' : 'loading="lazy"';
+      const pic = (cls, alt, extra) => `<picture class="banner-pic ${cls}">${hasMobile ? `<source media="(max-width:640px)" srcset="${esc(mobile)}">` : ""}<img class="${cls === "bg" ? "banner-bg" : "banner-img"}" src="${esc(desktop)}" alt="${alt}" ${extra} ${load}></picture>`;
       return `
-      <div class="banner-slide image-only${link ? " is-link" : ""}"${linkAttrs} aria-label="${label}">
-        <img class="banner-bg" src="${esc(b.image || "")}" alt="" aria-hidden="true" ${eager}>
-        <img class="banner-img" src="${esc(b.image || "")}" alt="${label}" ${eager}>
+      <div class="banner-slide image-only${hasMobile ? " has-mobile" : ""}${link ? " is-link" : ""}"${linkAttrs} aria-label="${label}">
+        ${pic("bg", "", 'aria-hidden="true"')}
+        ${pic("fg", label, "")}
       </div>`;
     }).join("");
     el.bannerDots.innerHTML = banners.map((_, i) => `<button data-dot="${i}" class="${i === 0 ? 'active' : ''}"></button>`).join("");
@@ -684,6 +691,7 @@
   /* ---------------------------------------------------------------
      Checkout
      --------------------------------------------------------------- */
+  const ONLINE_PAYMENTS = ["Pago móvil", "Binance", "Zelle"];
   function updatePaymentDetailsBox() {
     const val = el.custPayment.value;
     const s = siteSettings || {};
@@ -704,6 +712,13 @@
     }
     if (html) { el.paymentDetailsBox.innerHTML = html; el.paymentDetailsBox.hidden = false; }
     else el.paymentDetailsBox.hidden = true;
+
+    // Pago por Pago móvil / Binance / Zelle: pide la referencia. Efectivo o "Pagar después": avisa que pagar antes agiliza el pedido.
+    const online = ONLINE_PAYMENTS.includes(val);
+    el.payRefWrap.hidden = !online;
+    el.custPayRef.required = online;
+    if (!online) el.custPayRef.value = "";
+    el.payLaterNote.hidden = !(val === "Pagar después" || val === "Efectivo");
   }
   el.custPayment.addEventListener("change", updatePaymentDetailsBox);
 
@@ -807,6 +822,12 @@
       return;
     }
 
+    if (ONLINE_PAYMENTS.includes(el.custPayment.value) && !el.custPayRef.value.trim()) {
+      el.checkoutError.textContent = "Escribe el número de referencia de tu pago (o elige «Pagar después»).";
+      el.checkoutError.hidden = false;
+      return;
+    }
+
     const pooled = pooledQty();
     if (pooled < WHOLESALE_MIN_TOTAL) {
       el.checkoutError.textContent = `Te faltan ${WHOLESALE_MIN_TOTAL - pooled} unidades para completar el mínimo de ${WHOLESALE_MIN_TOTAL} (puedes combinar varios perfumes distintos).`;
@@ -836,6 +857,8 @@
       delivery_method: el.custDelivery.value,
       address: el.custAddress.value.trim(),
       payment_method: el.custPayment.value,
+      payment_reference: ONLINE_PAYMENTS.includes(el.custPayment.value) ? el.custPayRef.value.trim() : "",
+      payment_status: ONLINE_PAYMENTS.includes(el.custPayment.value) ? "por_verificar" : "pendiente",
       items,
       subtotal,
       discount: 0,
@@ -860,6 +883,8 @@
       lines.push(`Teléfono: ${order.phone}`);
       lines.push(`Ciudad: ${order.city}`);
       lines.push(`Método de pago: ${order.payment_method}`);
+      if (order.payment_status === "por_verificar") lines.push(`💳 PAGO REPORTADO — Referencia: ${order.payment_reference}`);
+      else lines.push(`⏳ PAGO PENDIENTE (pagará después)`);
       lines.push(`Entrega: ${order.delivery_method}`);
       if (order.address) lines.push(`Dirección: ${order.address}`);
 
@@ -887,6 +912,19 @@
   /* ---------------------------------------------------------------
      Ajustes del sitio (hero, textos)
      --------------------------------------------------------------- */
+  // Solo se ofrecen los métodos de pago que tienen datos cargados en Ajustes
+  // (si no hay correo de Zelle, la opción Zelle no aparece). "Efectivo" y "Pagar después"
+  // no necesitan datos. Si no hay NINGÚN método configurado, se dejan todos.
+  function syncPaymentOptions() {
+    const st = siteSettings || {};
+    const has = v => !!String(v == null ? "" : v).trim();
+    const configured = { "Pago móvil": has(st.pago_movil_phone), "Binance": has(st.binance_email), "Zelle": has(st.zelle_email) };
+    if (!Object.values(configured).some(Boolean)) return;
+    Array.from(el.custPayment.options).forEach(opt => {
+      if (opt.value in configured && !configured[opt.value]) opt.remove();
+    });
+  }
+
   function applySettings(settings) {
     if (settings.eyebrow_text) el.eyebrowText.textContent = settings.eyebrow_text;
     if (settings.hero_title) el.heroTitle.innerHTML = settings.hero_title;
@@ -918,6 +956,7 @@
     PRODUCTS = products;
     siteSettings = settings;
     applySettings(settings);
+    syncPaymentOptions();
 
     applyCategoryFromURL();
     renderMarquee();

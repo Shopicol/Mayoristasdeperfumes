@@ -94,10 +94,15 @@ input, select, textarea{ font-family:inherit; }
   flex:0 0 100%; min-height:340px; display:flex; flex-direction:column; justify-content:center;
   padding:44px 52px; background-size:cover; background-position:center; position:relative; color:var(--text);
 }
-.banner-slide{ color:#F5EBD0; }
+.banner-slide{ color:#F5EBD0; background-image:var(--bg); }
+@media (max-width:640px){ .banner-slide.has-mobile{ background-image:var(--bg-m); } }
 .banner-slide.has-text::before{ content:""; position:absolute; inset:0; background:linear-gradient(90deg, rgba(10,7,4,.6) 0%, rgba(10,7,4,.18) 55%, rgba(10,7,4,0) 100%); }
 /* Banner solo imagen: proporción fija 16:5, imagen completa (nunca recortada) y bordes difuminados si no coincide */
 .banner-slide.image-only{ aspect-ratio:16 / 5; min-height:0; padding:0; background:#0C0906; overflow:hidden; display:block; }
+.banner-slide.image-only .banner-pic{ display:block; }
+.banner-slide.image-only .banner-pic.bg{ position:absolute; inset:0; width:100%; height:100%; }
+.banner-slide.image-only .banner-pic.fg{ position:relative; width:100%; height:100%; }
+@media (max-width:640px){ .banner-slide.image-only.has-mobile{ aspect-ratio:2 / 1; } }
 .banner-slide.image-only .banner-bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:blur(22px) brightness(.9); transform:scale(1.15); }
 .banner-slide.image-only .banner-img{ position:relative; display:block; width:100%; height:100%; object-fit:contain; }
 .banner-slide.is-link{ cursor:pointer; }
@@ -416,4 +421,13 @@ input, select, textarea{ font-family:inherit; }
   .banner-nav{ width:28px; height:28px; font-size:15px; }
   .banner-nav.prev{ left:6px; } .banner-nav.next{ right:6px; }
   .banner-dots{ bottom:6px; }
+}
+
+
+/* ============================= PAGO EN EL CHECKOUT ============================= */
+#payRefWrap[hidden], .pay-later-note[hidden]{ display:none; }
+.field-hint{ font-size:11.5px; color:var(--text-soft); font-weight:400; letter-spacing:0; }
+.pay-later-note{
+  background:rgba(184,145,42,.12); border:1px solid var(--gold); color:var(--text);
+  border-radius:2px; padding:12px 14px; font-size:12.5px; line-height:1.55; margin:-4px 0 14px;
 }

@@ -116,10 +116,16 @@ async function getNextAdvisor() {
 }
 
 async function createOrder(order) {
-  if (SUPABASE_READY) {
-    const { data, error } = await supabaseClient.from("orders").insert(order).select().maybeSingle();
-    if (error) throw error;
-    return data;
+  if (!SUPABASE_READY) throw new Error("Supabase no está configurado.");
+  // OJO: no se pide el pedido de vuelta (.select()), porque un cliente sin sesión
+  // no tiene permiso de LEER pedidos y la base lo rechazaba aunque sí podía crearlo.
+  let { error } = await supabaseClient.from("orders").insert(order);
+  if (error && /payment_(reference|status)/.test(error.message || "")) {
+    // Si todavía no se corrió la migración de pagos, se guarda igual y el pago va dentro de la nota.
+    const { payment_reference, payment_status, ...rest } = order;
+    rest.note = `Pago: ${order.payment_method || ""}${payment_reference ? " · Ref " + payment_reference : ""} · ${payment_status || ""}`;
+    ({ error } = await supabaseClient.from("orders").insert(rest));
   }
-  throw new Error("Supabase no está configurado.");
+  if (error) throw error;
+  return null;
 }
