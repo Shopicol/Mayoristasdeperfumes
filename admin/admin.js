@@ -17,6 +17,7 @@
     tabProducts: document.getElementById("tabProducts"),
     tabOrders: document.getElementById("tabOrders"),
     tabBanners: document.getElementById("tabBanners"),
+    tabBulk: document.getElementById("tabBulk"),
     tabAdvisors: document.getElementById("tabAdvisors"),
     advisorsTableBody: document.getElementById("advisorsTableBody"),
     newAdvisorBtn: document.getElementById("newAdvisorBtn"),
@@ -184,7 +185,7 @@
   /* ---------------------------------------------------------------
      Tabs
      --------------------------------------------------------------- */
-  const tabPanels = { summary: el.tabSummary, products: el.tabProducts, orders: el.tabOrders, banners: el.tabBanners, advisors: el.tabAdvisors, settings: el.tabSettings };
+  const tabPanels = { summary: el.tabSummary, products: el.tabProducts, bulk: el.tabBulk, orders: el.tabOrders, banners: el.tabBanners, advisors: el.tabAdvisors, settings: el.tabSettings };
   document.querySelectorAll(".admin-tab").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".admin-tab").forEach(b => b.classList.remove("active"));
@@ -193,6 +194,9 @@
       tabPanels[btn.dataset.tab].hidden = false;
     });
   });
+
+  // La carga masiva (bulk.js) avisa cuando termina, para refrescar la lista de productos
+  window.addEventListener("products-imported", () => loadProducts());
 
   /* ---------------------------------------------------------------
      PRODUCTOS

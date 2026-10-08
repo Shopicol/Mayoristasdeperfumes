@@ -45,6 +45,7 @@
   <nav class="admin-tabs">
     <button class="admin-tab active" data-tab="summary">Resumen</button>
     <button class="admin-tab" data-tab="products">Productos</button>
+    <button class="admin-tab" data-tab="bulk">Carga masiva</button>
     <button class="admin-tab" data-tab="orders">Pedidos <span class="tab-badge" id="ordersBadge" hidden>0</span></button>
     <button class="admin-tab" data-tab="banners">Banners</button>
     <button class="admin-tab" data-tab="advisors">Asesoras</button>
@@ -98,6 +99,64 @@
     <div class="admin-tab-panel" id="tabOrders" hidden>
       <div class="orders-list" id="ordersList"></div>
       <p class="admin-empty" id="ordersEmpty" hidden>Todavía no hay pedidos.</p>
+    </div>
+
+    <!-- ============ TAB: CARGA MASIVA ============ -->
+    <div class="admin-tab-panel" id="tabBulk" hidden>
+      <div class="bulk-card">
+        <h2>Carga masiva de productos</h2>
+        <p class="bulk-lead">Llena la plantilla de Excel con todos tus productos y súbela aquí: se crean los nuevos y se actualizan los que ya existen (por <strong>referencia</strong> o por nombre). Nada se guarda hasta que presiones <strong>Importar</strong>.</p>
+
+        <div class="bulk-step">
+          <span class="bulk-num">1</span>
+          <div>
+            <h3>Descarga la plantilla</h3>
+            <p>Trae listas desplegables, instrucciones y un ejemplo. Si quieres cambiar precios en masa, descarga tu catálogo actual, edítalo y vuelve a subirlo.</p>
+            <div class="bulk-buttons">
+              <a class="btn-primary bulk-link" href="plantilla_carga_productos.xlsx" download>⬇ Plantilla vacía</a>
+              <button type="button" class="bulk-secondary" id="bulkExportBtn">⬇ Mi catálogo actual</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="bulk-step">
+          <span class="bulk-num">2</span>
+          <div>
+            <h3>Sube tu Excel</h3>
+            <input type="file" id="bulkFile" accept=".xlsx,.xls,.csv">
+          </div>
+        </div>
+
+        <div class="bulk-step">
+          <span class="bulk-num">3</span>
+          <div>
+            <h3>Sube las fotos <span class="bulk-opt">(opcional)</span></h3>
+            <p>Selecciona todas juntas. Se emparejan por el nombre del archivo con la columna «Foto» (o con la Referencia / el Nombre) y se reducen solas para que la tienda cargue rápido. Formatos: JPG, PNG o WEBP.</p>
+            <input type="file" id="bulkPhotos" accept="image/jpeg,image/png,image/webp" multiple>
+            <p class="bulk-photo-info" id="bulkPhotoInfo">Aún no has elegido fotos.</p>
+          </div>
+        </div>
+
+        <div class="bulk-step">
+          <span class="bulk-num">4</span>
+          <div style="flex:1; min-width:0">
+            <h3>Revisa y confirma</h3>
+            <div class="bulk-summary" id="bulkSummary"></div>
+            <div class="table-wrap bulk-table-wrap" id="bulkPreviewWrap" hidden>
+              <table class="admin-table bulk-table">
+                <thead><tr><th>Fila</th><th>Acción</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Mín.</th><th>Foto</th><th>Estado</th></tr></thead>
+                <tbody id="bulkPreviewBody"></tbody>
+              </table>
+            </div>
+            <div class="bulk-actions">
+              <button type="button" class="btn-primary" id="bulkImportBtn" disabled>Importar</button>
+              <progress id="bulkProgress" value="0" max="1" hidden></progress>
+              <span id="bulkStatus" class="bulk-status"></span>
+            </div>
+            <div id="bulkResult"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ============ TAB: BANNERS ============ -->
@@ -293,6 +352,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../config.js"></script>
 <script src="../supabase-client.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="admin.js"></script>
+<script src="bulk.js"></script>
 </body>
 </html>
