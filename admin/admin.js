@@ -89,6 +89,9 @@
     bannerFieldSubtitle: document.getElementById("bannerFieldSubtitle"),
     bannerFieldImageFile: document.getElementById("bannerFieldImageFile"),
     bannerFieldImagePreview: document.getElementById("bannerFieldImagePreview"),
+    bannerFieldMobileFile: document.getElementById("bannerFieldMobileFile"),
+    bannerFieldMobilePreview: document.getElementById("bannerFieldMobilePreview"),
+    bannerRemoveMobileBtn: document.getElementById("bannerRemoveMobileBtn"),
     bannerFieldDest: document.getElementById("bannerFieldDest"),
     bannerCustomLinkWrap: document.getElementById("bannerCustomLinkWrap"),
     bannerFieldLink: document.getElementById("bannerFieldLink"),
@@ -171,10 +174,50 @@
     if (data.session) await enterAdmin(data.session.user);
   }
 
+  // Rol de quien entró: "admin" (todo) o "advisor" (asesora: solo sus pedidos y los productos)
+  let currentRole = "admin";
+  async function loadStaffRole(user) {
+    const { data, error } = await supabaseClient.from("staff").select("email,role,advisor_id");
+    if (error) {
+      // Si la tabla "staff" aún no existe (todavía no se corrió la migración), se funciona como antes.
+      if (/staff/i.test(error.message || "") || error.code === "42P01" || error.code === "PGRST205") return { role: "admin", legacy: true };
+      throw error;
+    }
+    const mine = (data || []).find(r => String(r.email).toLowerCase() === String(user.email).toLowerCase());
+    return mine || null;
+  }
+
   async function enterAdmin(user) {
+    let staff = null;
+    try { staff = await loadStaffRole(user); }
+    catch (err) { el.loginError.textContent = "No se pudo comprobar tu acceso: " + err.message; el.loginError.hidden = false; el.loginScreen.hidden = false; el.adminApp.hidden = true; return; }
+    if (!staff) {
+      await supabaseClient.auth.signOut();
+      el.loginScreen.hidden = false; el.adminApp.hidden = true;
+      el.loginError.textContent = "Tu usuario no tiene permisos. Pídele acceso a la administradora.";
+      el.loginError.hidden = false;
+      return;
+    }
+    currentRole = staff.role === "advisor" ? "advisor" : "admin";
     el.loginScreen.hidden = true;
     el.adminApp.hidden = false;
     el.adminUserEmail.textContent = user.email;
+
+    if (currentRole === "advisor") {
+      // Asesora: solo Productos, Carga masiva y SUS pedidos (la base de datos además lo impone).
+      const allowed = ["products", "bulk", "orders"];
+      document.querySelectorAll(".admin-tab").forEach(b => { b.hidden = !allowed.includes(b.dataset.tab); });
+      let name = "";
+      if (staff.advisor_id) {
+        const { data } = await supabaseClient.from("advisors").select("name").eq("id", staff.advisor_id).maybeSingle();
+        name = data ? data.name : "";
+      }
+      el.adminUserEmail.textContent = name ? `Asesora ${name}` : user.email;
+      loadProducts();
+      loadOrders();
+      document.querySelector('.admin-tab[data-tab="orders"]').click();
+      return;
+    }
     loadProducts();
     loadOrders();
     loadBanners();
@@ -405,6 +448,7 @@
      --------------------------------------------------------------- */
   let allOrders = [];
   const STATUS_LABELS = { nuevo: "🆕 Nuevo", tomado: "📦 Tomado", entregado: "✅ Entregado", cancelado: "❌ Cancelado" };
+  const PAY_LABELS = { pendiente: "⏳ Pago pendiente", por_verificar: "🔎 Pago por verificar", pagado: "✅ Pagado" };
 
   async function loadOrders() {
     const { data, error } = await supabaseClient.from("orders").select("*").order("created_at", { ascending: false });
@@ -435,12 +479,29 @@
           <p class="order-date">${date}</p>
           <p class="order-items">${itemsText}</p>
           <p class="order-total">${money(o.total)}</p>
+          <div class="order-pay-row">
+            <span class="pay-badge ${o.payment_status || "pendiente"}">${PAY_LABELS[o.payment_status] || PAY_LABELS.pendiente}${o.payment_reference ? " · Ref " + o.payment_reference : ""}</span>
+            <select class="order-pay-select" data-order-pay="${o.id}" title="Estado del pago">
+              ${Object.entries(PAY_LABELS).map(([val, label]) => `<option value="${val}" ${(o.payment_status || "pendiente") === val ? "selected" : ""}>${label}</option>`).join("")}
+            </select>
+          </div>
+          ${o.advisor_name ? `<p class="order-advisor">Asesora: ${o.advisor_name}</p>` : ""}
           <p class="order-meta">${o.payment_method || ""} · ${o.delivery_method || ""} · ${o.city || ""}${o.address ? " — " + o.address : ""}</p>
         </div>
       `;
     }).join("");
   }
   el.ordersList.addEventListener("change", async (e) => {
+    const payId = e.target.closest("[data-order-pay]")?.dataset.orderPay;
+    if (payId) {
+      const { error } = await supabaseClient.from("orders").update({ payment_status: e.target.value }).eq("id", payId);
+      if (error) { showToast("No se pudo actualizar el pago: " + error.message, true); return; }
+      const o = allOrders.find(x => String(x.id) === payId);
+      if (o) o.payment_status = e.target.value;
+      renderOrders();
+      showToast("Pago actualizado");
+      return;
+    }
     const id = e.target.closest("[data-order-status]")?.dataset.orderStatus;
     if (!id) return;
     const { error } = await supabaseClient.from("orders").update({ status: e.target.value }).eq("id", id);
@@ -459,6 +520,8 @@
      --------------------------------------------------------------- */
   let allBanners = [];
   let pendingBannerImageFile = null;
+  let pendingBannerMobileFile = null;
+  let removeBannerMobile = false;
 
   async function loadBanners() {
     const { data, error } = await supabaseClient.from("banners").select("*").order("sort_order", { ascending: true });
@@ -487,6 +550,9 @@
 
   function openBannerModal(banner) {
     pendingBannerImageFile = null;
+    pendingBannerMobileFile = null;
+    removeBannerMobile = false;
+    el.bannerFieldMobileFile.value = "";
     el.bannerFormMessage.hidden = true;
     if (banner) {
       el.bannerModalTitle.textContent = "Editar banner";
@@ -502,9 +568,12 @@
       el.bannerFieldActive.checked = Boolean(banner.active);
       if (banner.image) { el.bannerFieldImagePreview.src = banner.image; el.bannerFieldImagePreview.hidden = false; }
       else el.bannerFieldImagePreview.hidden = true;
+      if (banner.image_mobile) { el.bannerFieldMobilePreview.src = banner.image_mobile; el.bannerFieldMobilePreview.hidden = false; el.bannerRemoveMobileBtn.hidden = false; }
+      else { el.bannerFieldMobilePreview.hidden = true; el.bannerRemoveMobileBtn.hidden = true; }
       el.deleteBannerBtn.hidden = false;
     } else {
       el.bannerModalTitle.textContent = "Nuevo banner";
+      el.bannerFieldMobilePreview.hidden = true; el.bannerRemoveMobileBtn.hidden = true;
       el.bannerForm.reset();
       el.bannerFieldId.value = "";
       el.bannerFieldActive.checked = true;
@@ -514,6 +583,17 @@
     el.bannerCustomLinkWrap.hidden = el.bannerFieldDest.value !== "custom";
     el.bannerModalOverlay.hidden = false;
   }
+  el.bannerFieldMobileFile.addEventListener("change", () => {
+    const f = el.bannerFieldMobileFile.files[0];
+    if (!f) return;
+    pendingBannerMobileFile = f; removeBannerMobile = false;
+    el.bannerFieldMobilePreview.src = URL.createObjectURL(f);
+    el.bannerFieldMobilePreview.hidden = false; el.bannerRemoveMobileBtn.hidden = false;
+  });
+  el.bannerRemoveMobileBtn.addEventListener("click", () => {
+    removeBannerMobile = true; pendingBannerMobileFile = null; el.bannerFieldMobileFile.value = "";
+    el.bannerFieldMobilePreview.hidden = true; el.bannerRemoveMobileBtn.hidden = true;
+  });
   el.bannerFieldDest.addEventListener("change", () => {
     el.bannerCustomLinkWrap.hidden = el.bannerFieldDest.value !== "custom";
   });
@@ -531,15 +611,33 @@
     el.bannerFieldImagePreview.hidden = false;
   });
 
-  async function uploadBannerImageIfNeeded(existingUrl) {
-    if (!pendingBannerImageFile) return existingUrl || "";
-    const ext = pendingBannerImageFile.name.split(".").pop();
-    const path = `banner-${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
-    const { error } = await supabaseClient.storage.from("product-images").upload(path, pendingBannerImageFile, { upsert: false });
-    if (error) throw error;
-    const { data } = supabaseClient.storage.from("product-images").getPublicUrl(path);
-    return data.publicUrl;
+  // Reduce la imagen antes de subirla (los banners originales pesan ~2,5 MB; así quedan en ~150 KB)
+  async function compressForUpload(file, maxSide) {
+    try {
+      const bmp = await createImageBitmap(file);
+      const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+      const w = Math.max(1, Math.round(bmp.width * scale)), h = Math.max(1, Math.round(bmp.height * scale));
+      const canvas = document.createElement("canvas"); canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(bmp, 0, 0, w, h);
+      if (bmp.close) bmp.close();
+      let blob = await new Promise(res => canvas.toBlob(res, "image/webp", 0.82));
+      if (!blob || blob.type !== "image/webp") blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", 0.82));
+      if (!blob || (scale === 1 && file.size <= blob.size && /^image\/(jpeg|webp)$/.test(file.type))) return file;
+      return blob;
+    } catch (e) { return file; }   // si el navegador no puede, se sube tal cual
   }
+  async function uploadBannerFile(file, existingUrl, maxSide) {
+    if (!file) return existingUrl || "";
+    const blob = await compressForUpload(file, maxSide);
+    const ext = blob.type === "image/webp" ? "webp" : (blob.type === "image/jpeg" ? "jpg" : (file.name.split(".").pop() || "jpg"));
+    const path = `banner-${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
+    const { error } = await supabaseClient.storage.from("product-images").upload(path, blob, { upsert: false, contentType: blob.type || file.type, cacheControl: "31536000" });
+    if (error) throw error;
+    return supabaseClient.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+  }
+  const uploadBannerImageIfNeeded = existingUrl => uploadBannerFile(pendingBannerImageFile, existingUrl, 2400);
 
   el.bannerForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -550,6 +648,9 @@
       const id = el.bannerFieldId.value;
       const existing = id ? allBanners.find(b => String(b.id) === id) : null;
       const imageUrl = await uploadBannerImageIfNeeded(existing?.image);
+      let mobileUrl = existing?.image_mobile || "";
+      if (removeBannerMobile) mobileUrl = "";
+      if (pendingBannerMobileFile) mobileUrl = await uploadBannerFile(pendingBannerMobileFile, mobileUrl, 1600);
 
       const payload = {
         title: el.bannerFieldTitle.value.trim(),
@@ -560,6 +661,7 @@
         active: el.bannerFieldActive.checked,
         image: imageUrl,
       };
+      if (mobileUrl || existing?.image_mobile) payload.image_mobile = mobileUrl;
 
       let error;
       if (id) ({ error } = await supabaseClient.from("banners").update(payload).eq("id", id));
