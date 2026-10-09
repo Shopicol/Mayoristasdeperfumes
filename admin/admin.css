@@ -192,3 +192,7 @@ input, select, textarea{ font-family:inherit; }
 .order-pay-select{ padding:5px 8px; border-radius:8px; border:1px solid var(--line); font-size:12px; background:#fff; }
 .order-advisor{ font-size:12px; color:var(--ink-soft); margin:2px 0 0; }
 .role-note{ font-size:12px; color:var(--ink-soft); margin:0 0 14px; }
+
+.order-actions{ margin-top:10px; }
+.posgold-btn{ background:#fff; border:1.5px solid var(--line); color:var(--ink); border-radius:8px; padding:7px 13px; font-size:12.5px; font-weight:600; cursor:pointer; }
+.posgold-btn:hover{ border-color:var(--ink); background:var(--cream, #f5f0e6); }

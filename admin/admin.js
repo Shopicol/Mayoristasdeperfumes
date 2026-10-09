@@ -66,6 +66,7 @@
     fieldCategory: document.getElementById("fieldCategory"),
     categoryOptions: document.getElementById("categoryOptions"),
     fieldRef: document.getElementById("fieldRef"),
+    fieldPosgold: document.getElementById("fieldPosgold"),
     fieldAvail: document.getElementById("fieldAvail"),
     fieldMinQty: document.getElementById("fieldMinQty"),
     fieldMayor: document.getElementById("fieldMayor"),
@@ -108,6 +109,7 @@
     settingsHeroTitle: document.getElementById("settingsHeroTitle"),
     settingsHeroSubtitle: document.getElementById("settingsHeroSubtitle"),
     settingsExchangeRate: document.getElementById("settingsExchangeRate"),
+    settingsPosgoldBodega: document.getElementById("settingsPosgoldBodega"),
     settingsPagoMovilPhone: document.getElementById("settingsPagoMovilPhone"),
     settingsPagoMovilCedula: document.getElementById("settingsPagoMovilCedula"),
     settingsPagoMovilBank: document.getElementById("settingsPagoMovilBank"),
@@ -347,6 +349,7 @@
       el.fieldBrand.value = product.brand || "";
       el.fieldCategory.value = product.category || "";
       el.fieldRef.value = product.ref || "";
+      el.fieldPosgold.value = product.posgold_code || "";
       el.fieldAvail.value = String(Boolean(product.avail));
       el.fieldMinQty.value = product.min_qty ?? 12;
       el.fieldMayor.value = product.mayor ?? "";
@@ -406,6 +409,7 @@
         brand: el.fieldBrand.value.trim(),
         category: el.fieldCategory.value.trim(),
         ref: el.fieldRef.value.trim(),
+        posgold_code: el.fieldPosgold.value.trim(),
         avail: el.fieldAvail.value === "true",
         min_qty: parseInt(el.fieldMinQty.value, 10) || 12,
         mayor: parseFloat(el.fieldMayor.value) || 0,
@@ -487,10 +491,58 @@
           </div>
           ${o.advisor_name ? `<p class="order-advisor">Asesora: ${o.advisor_name}</p>` : ""}
           <p class="order-meta">${o.payment_method || ""} · ${o.delivery_method || ""} · ${o.city || ""}${o.address ? " — " + o.address : ""}</p>
+          <div class="order-actions"><button type="button" class="posgold-btn" data-posgold="${o.id}">⬇ Excel para PosGold</button></div>
         </div>
       `;
     }).join("");
   }
+  /* ---------------------------------------------------------------
+     EXCEL PARA POSGOLD — mismo formato que la plantilla «PedidoExcel»:
+     una hoja llamada PedidoExcel con las columnas
+     codigo · cod_bodega · cantidad · precio · porc_descuento · descuento
+     --------------------------------------------------------------- */
+  const POSGOLD_COLS = ["codigo", "cod_bodega", "cantidad", "precio", "porc_descuento", "descuento"];
+  async function downloadPosgoldExcel(orderId) {
+    if (!window.XLSX) { showToast("No se pudo cargar el lector de Excel. Recarga la página.", true); return; }
+    const o = allOrders.find(x => String(x.id) === String(orderId));
+    if (!o) return;
+    const items = Array.isArray(o.items) ? o.items : [];
+    if (!items.length) { showToast("Este pedido no tiene productos.", true); return; }
+
+    // El código de PosGold sale del producto; si no tiene, se usa su referencia
+    let bodega = "01";
+    try { const s = await fetchSettings(); bodega = String(s.posgold_bodega || "01").trim() || "01"; } catch (e) {}
+    const missing = [], fallback = [];
+    const rows = items.map(it => {
+      const p = allProducts.find(pp => String(pp.id) === String(it.id)) || allProducts.find(pp => pp.name === it.name);
+      let code = p && p.posgold_code ? String(p.posgold_code).trim() : "";
+      if (!code && p && p.ref) { code = String(p.ref).trim(); fallback.push(it.name); }
+      if (!code) missing.push(it.name);
+      return [code, bodega, Number(it.qty) || 0, Number(it.price) || 0, 0, 0];
+    });
+    if (missing.length) {
+      if (!window.confirm("Estos productos NO tienen código de PosGold ni referencia, así que saldrán con el código vacío y PosGold los rechazará:\n\n• " + missing.join("\n• ") + "\n\nAgrégales el código en la pestaña Productos (campo «Código en PosGold») o en Carga masiva.\n\n¿Descargar de todos modos?")) return;
+    } else if (fallback.length) {
+      showToast(`${fallback.length} producto(s) sin código de PosGold: se usó su referencia.`);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet([POSGOLD_COLS, ...rows]);
+    for (let r = 1; r <= rows.length; r++) for (const c of [0, 1]) {            // codigo y cod_bodega van como TEXTO (conserva ceros: 002, 01)
+      const cell = ws[XLSX.utils.encode_cell({ r, c })];
+      if (cell) { cell.t = "s"; cell.v = String(cell.v); cell.z = "@"; }
+    }
+    ws["!cols"] = [10.2, 15, 11.9, 9.9, 18.3, 13.5].map(w => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "PedidoExcel");
+    const who = String(o.customer_name || "cliente").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").slice(0, 24);
+    XLSX.writeFile(wb, `PedidoExcel_${o.id}_${who}.xlsx`);
+    showToast("Excel para PosGold descargado ✓");
+  }
+  el.ordersList.addEventListener("click", (e) => {
+    const id = e.target.closest("[data-posgold]")?.dataset.posgold;
+    if (id) downloadPosgoldExcel(id);
+  });
+
   el.ordersList.addEventListener("change", async (e) => {
     const payId = e.target.closest("[data-order-pay]")?.dataset.orderPay;
     if (payId) {
@@ -817,6 +869,7 @@
     el.settingsHeroTitle.value = settings.hero_title || "";
     el.settingsHeroSubtitle.value = settings.hero_subtitle || "";
     el.settingsExchangeRate.value = settings.exchange_rate || "";
+    el.settingsPosgoldBodega.value = settings.posgold_bodega || "01";
     el.settingsPagoMovilPhone.value = settings.pago_movil_phone || "";
     el.settingsPagoMovilCedula.value = settings.pago_movil_cedula || "";
     el.settingsPagoMovilBank.value = settings.pago_movil_bank || "";
@@ -837,6 +890,7 @@
       hero_title: el.settingsHeroTitle.value.trim(),
       hero_subtitle: el.settingsHeroSubtitle.value.trim(),
       exchange_rate: parseFloat(el.settingsExchangeRate.value) || 0,
+      posgold_bodega: el.settingsPosgoldBodega.value.trim() || "01",
       pago_movil_phone: el.settingsPagoMovilPhone.value.trim(),
       pago_movil_cedula: el.settingsPagoMovilCedula.value.trim(),
       pago_movil_bank: el.settingsPagoMovilBank.value.trim(),

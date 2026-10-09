@@ -214,6 +214,12 @@
           <input type="number" id="settingsExchangeRate" step="0.01" min="0">
         </label>
 
+        <label>
+          <span>Código de bodega en PosGold</span>
+          <input type="text" id="settingsPosgoldBodega" placeholder="01">
+          <small class="field-hint">Se escribe en la columna «cod_bodega» del Excel que se descarga de cada pedido para PosGold.</small>
+        </label>
+
         <h2>Datos de pago</h2>
         <div class="form-row three">
           <label><span>Pago Móvil — Teléfono</span><input type="text" id="settingsPagoMovilPhone"></label>
@@ -251,6 +257,9 @@
       </div>
       <div class="form-row two">
         <label><span>Referencia/SKU</span><input type="text" id="fieldRef"></label>
+        <label><span>Código en PosGold <em class="opt">(opcional)</em></span><input type="text" id="fieldPosgold" placeholder="Ej: 002"></label>
+      </div>
+      <div class="form-row two">
         <label><span>Disponible</span>
           <select id="fieldAvail"><option value="true">Sí</option><option value="false">No</option></select>
         </label>
