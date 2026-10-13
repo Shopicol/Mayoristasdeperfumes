@@ -106,6 +106,9 @@
     payRefWrap: document.getElementById("payRefWrap"),
     custPayRef: document.getElementById("custPayRef"),
     payLaterNote: document.getElementById("payLaterNote"),
+    payLaterOverlay: document.getElementById("payLaterOverlay"),
+    payLaterNow: document.getElementById("payLaterNow"),
+    payLaterOk: document.getElementById("payLaterOk"),
     custDelivery: document.getElementById("custDelivery"),
     addressField: document.getElementById("addressField"),
     custAddress: document.getElementById("custAddress"),
@@ -692,23 +695,37 @@
      Checkout
      --------------------------------------------------------------- */
   const ONLINE_PAYMENTS = ["Pago móvil", "Binance", "Zelle"];
+
+  /* Conversión a bolívares: total en $ × la tasa que se guarda en Ajustes (misma lógica que Shopicol) */
+  function exchangeRate() { return Number(siteSettings && siteSettings.exchange_rate) || 0; }
+  function formatBs(amountUsd) {
+    const rate = exchangeRate();
+    if (!rate || !amountUsd) return null;
+    return "Bs " + (amountUsd * rate).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
   function updatePaymentDetailsBox() {
     const val = el.custPayment.value;
     const s = siteSettings || {};
+    const totalUsd = cartTotal();
     let html = "";
     if (val === "Pago móvil") {
+      const bs = formatBs(totalUsd);
       html = `<strong>Datos para Pago Móvil</strong>
         <span>Teléfono: <b>${s.pago_movil_phone || "—"}</b></span>
         <span>Cédula/RIF: <b>${s.pago_movil_cedula || "—"}</b></span>
-        <span>Banco: <b>${s.pago_movil_bank || "—"}</b></span>`;
+        <span>Banco: <b>${s.pago_movil_bank || "—"}</b></span>
+        <span class="payment-amount-due">A pagar: <b>${bs || "(te confirmamos el monto por WhatsApp)"}</b></span>
+        ${bs ? `<span class="payment-amount-hint">${money(totalUsd)} × tasa ${exchangeRate().toLocaleString("es-VE")}</span>` : ""}`;
     } else if (val === "Binance") {
       html = `<strong>Datos para Binance</strong>
         <span>Correo/ID: <b>${s.binance_email || "—"}</b></span>
-        ${s.binance_holder_name ? `<span>Titular: <b>${s.binance_holder_name}</b></span>` : ""}`;
+        ${s.binance_holder_name ? `<span>Titular: <b>${s.binance_holder_name}</b></span>` : ""}
+        <span class="payment-amount-due">A pagar: <b>${money(totalUsd)}</b></span>`;
     } else if (val === "Zelle") {
       html = `<strong>Datos para Zelle</strong>
         <span>Correo: <b>${s.zelle_email || "—"}</b></span>
-        ${s.zelle_holder_name ? `<span>Titular: <b>${s.zelle_holder_name}</b></span>` : ""}`;
+        ${s.zelle_holder_name ? `<span>Titular: <b>${s.zelle_holder_name}</b></span>` : ""}
+        <span class="payment-amount-due">A pagar: <b>${money(totalUsd)}</b></span>`;
     }
     if (html) { el.paymentDetailsBox.innerHTML = html; el.paymentDetailsBox.hidden = false; }
     else el.paymentDetailsBox.hidden = true;
@@ -720,7 +737,18 @@
     if (!online) el.custPayRef.value = "";
     el.payLaterNote.hidden = !(val === "Pagar después" || val === "Efectivo");
   }
-  el.custPayment.addEventListener("change", updatePaymentDetailsBox);
+  el.custPayment.addEventListener("change", () => {
+    updatePaymentDetailsBox();
+    if (el.custPayment.value === "Pagar después") el.payLaterOverlay.hidden = false;
+  });
+  el.payLaterOk.addEventListener("click", () => { el.payLaterOverlay.hidden = true; });
+  el.payLaterNow.addEventListener("click", () => {
+    el.payLaterOverlay.hidden = true;
+    el.custPayment.value = "";                       // vuelve a elegir un método de pago
+    updatePaymentDetailsBox();
+    el.custPayment.focus();
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !el.payLaterOverlay.hidden) el.payLaterOverlay.hidden = true; });
 
   el.custDelivery.addEventListener("change", () => {
     const val = el.custDelivery.value;
@@ -859,6 +887,8 @@
       payment_method: el.custPayment.value,
       payment_reference: ONLINE_PAYMENTS.includes(el.custPayment.value) ? el.custPayRef.value.trim() : "",
       payment_status: ONLINE_PAYMENTS.includes(el.custPayment.value) ? "por_verificar" : "pendiente",
+      exchange_rate: exchangeRate(),
+      total_bs: el.custPayment.value === "Pago móvil" ? Math.round(total * exchangeRate() * 100) / 100 : 0,
       items,
       subtotal,
       discount: 0,
@@ -878,6 +908,7 @@
       items.forEach(i => lines.push(`• ${i.qty}x ${i.name} — ${money(i.price)} c/u`));
       lines.push("");
       lines.push(`Total: ${money(total)}`);
+      if (order.payment_method === "Pago móvil") { const bsLine = formatBs(total); if (bsLine) lines.push(`Monto a pagar: ${bsLine} (tasa ${exchangeRate().toLocaleString("es-VE")})`); }
       lines.push("");
       lines.push(`Nombre: ${order.customer_name}`);
       lines.push(`Teléfono: ${order.phone}`);

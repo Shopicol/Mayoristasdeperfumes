@@ -120,10 +120,10 @@ async function createOrder(order) {
   // OJO: no se pide el pedido de vuelta (.select()), porque un cliente sin sesión
   // no tiene permiso de LEER pedidos y la base lo rechazaba aunque sí podía crearlo.
   let { error } = await supabaseClient.from("orders").insert(order);
-  if (error && /payment_(reference|status)/.test(error.message || "")) {
+  if (error && /payment_(reference|status)|exchange_rate|total_bs/.test(error.message || "")) {
     // Si todavía no se corrió la migración de pagos, se guarda igual y el pago va dentro de la nota.
-    const { payment_reference, payment_status, ...rest } = order;
-    rest.note = `Pago: ${order.payment_method || ""}${payment_reference ? " · Ref " + payment_reference : ""} · ${payment_status || ""}`;
+    const { payment_reference, payment_status, exchange_rate, total_bs, ...rest } = order;
+    rest.note = `Pago: ${order.payment_method || ""}${payment_reference ? " · Ref " + payment_reference : ""} · ${payment_status || ""}${total_bs ? " · Bs " + total_bs + " (tasa " + exchange_rate + ")" : ""}`;
     ({ error } = await supabaseClient.from("orders").insert(rest));
   }
   if (error) throw error;

@@ -431,3 +431,24 @@ input, select, textarea{ font-family:inherit; }
   background:rgba(184,145,42,.12); border:1px solid var(--gold); color:var(--text);
   border-radius:2px; padding:12px 14px; font-size:12.5px; line-height:1.55; margin:-4px 0 14px;
 }
+
+
+/* ============================= MONTO A PAGAR + VENTANA «PAGAR DESPUÉS» ============================= */
+.payment-amount-due{ margin-top:6px; padding-top:8px; border-top:1px dashed var(--line); font-size:15px; }
+.payment-amount-due b{ color:var(--gold); font-size:17px; }
+.payment-amount-hint{ font-size:11.5px; color:var(--text-soft); }
+.paylater-overlay{ z-index:120; }
+.paylater-card{
+  background:var(--bg-card); border:1px solid var(--gold); border-radius:4px; max-width:420px; width:100%;
+  padding:28px 26px; text-align:center; box-shadow:var(--shadow-lg);
+}
+.paylater-icon{ font-size:34px; margin-bottom:6px; }
+.paylater-card h3{ font-family:var(--font-display); font-size:25px; margin:0 0 10px; line-height:1.25; }
+.paylater-card p{ font-size:14px; color:var(--text-soft); line-height:1.55; margin:0 0 20px; }
+.paylater-card p strong{ color:var(--text); }
+.paylater-actions{ display:flex; flex-direction:column; gap:10px; }
+.paylater-ok{
+  background:none; border:1.5px solid var(--line); color:var(--text); border-radius:2px; padding:12px 18px; cursor:pointer;
+  font-family:"Montserrat",sans-serif; font-weight:700; font-size:12.5px; letter-spacing:.06em; text-transform:uppercase;
+}
+.paylater-ok:hover{ border-color:var(--text); }

@@ -168,6 +168,19 @@
 </div>
 
 <!-- ============ CHECKOUT ============ -->
+<!-- Ventana al elegir "Pagar después" -->
+<div class="modal-overlay paylater-overlay" id="payLaterOverlay" hidden>
+  <div class="paylater-card" role="dialog" aria-modal="true" aria-labelledby="payLaterTitle">
+    <div class="paylater-icon">⏳</div>
+    <h3 id="payLaterTitle">Los pedidos que van pagos salen antes</h3>
+    <p>Puedes dejar tu pedido registrado y pagar después, pero <strong>los pedidos con pago se atienden primero</strong>.</p>
+    <div class="paylater-actions">
+      <button type="button" class="btn-primary" id="payLaterNow">Prefiero pagar ahora</button>
+      <button type="button" class="paylater-ok" id="payLaterOk">Entendido, pagar después</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="checkoutOverlay" hidden>
   <div class="modal-card checkout-card">
     <button class="modal-close" id="checkoutClose" aria-label="Cerrar">✕</button>
@@ -222,7 +235,7 @@
           <small class="field-hint">Si aún no has pagado, elige «Pagar después».</small>
         </label>
         <div class="pay-later-note" id="payLaterNote" hidden>
-          <strong>Los pedidos pagados se toman más rápidamente.</strong>
+          <strong>Los pedidos que van pagos salen antes.</strong>
           Puedes pagar después: tu pedido queda registrado y, cuando pagues, avísale a tu asesora por WhatsApp.
         </div>
 
