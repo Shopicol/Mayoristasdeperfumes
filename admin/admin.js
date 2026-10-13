@@ -256,6 +256,7 @@
     paintStats();
     buildCategoryDatalist();
     renderTable();
+    if (typeof renderOrders === "function" && Array.isArray(allOrders) && allOrders.length) renderOrders();
   }
 
   function paintStats() {
@@ -491,6 +492,7 @@
           </div>
           ${o.advisor_name ? `<p class="order-advisor">Asesora: ${o.advisor_name}</p>` : ""}
           <p class="order-meta">${o.payment_method || ""} · ${o.delivery_method || ""} · ${o.city || ""}${o.address ? " — " + o.address : ""}</p>
+          ${(() => { const bx = (Array.isArray(o.items) ? o.items : []).filter(isBoxItem); return bx.length ? `<p class="order-boxes">📦 <strong>Cajas para agregar a mano en PosGold:</strong> ${bx.map(it => `${it.name} × ${Number(it.qty) || 0}`).join(" · ")}</p>` : ""; })()}
           <div class="order-actions"><button type="button" class="posgold-btn" data-posgold="${o.id}">⬇ Excel para PosGold</button></div>
         </div>
       `;
@@ -502,12 +504,25 @@
      codigo · cod_bodega · cantidad · precio · porc_descuento · descuento
      --------------------------------------------------------------- */
   const POSGOLD_COLS = ["codigo", "cod_bodega", "cantidad", "precio", "porc_descuento", "descuento"];
+  // Las cajas NO van en el Excel de PosGold (se agregan a mano). Se reconocen por la categoría del producto
+  // o, si el producto ya no existe, porque su nombre dice "caja".
+  function isBoxItem(it) {
+    const p = allProducts.find(pp => String(pp.id) === String(it.id)) || allProducts.find(pp => pp.name === it.name);
+    return p ? p.category === "Cajas / Combos" : /\bcaja\b/i.test(String(it.name || ""));
+  }
+  function boxesText(boxes) { return boxes.map(it => `• ${it.name} × ${Number(it.qty) || 0}`).join("\n"); }
   async function downloadPosgoldExcel(orderId) {
     if (!window.XLSX) { showToast("No se pudo cargar el lector de Excel. Recarga la página.", true); return; }
     const o = allOrders.find(x => String(x.id) === String(orderId));
     if (!o) return;
-    const items = Array.isArray(o.items) ? o.items : [];
-    if (!items.length) { showToast("Este pedido no tiene productos.", true); return; }
+    const allItems = Array.isArray(o.items) ? o.items : [];
+    if (!allItems.length) { showToast("Este pedido no tiene productos.", true); return; }
+    const boxes = allItems.filter(isBoxItem);
+    const items = allItems.filter(it => !isBoxItem(it));
+    if (!items.length) {
+      window.alert("📦 Este pedido solo trae cajas, y las cajas NO van en el Excel de PosGold.\n\nAgrégalas manualmente en PosGold:\n\n" + boxesText(boxes));
+      return;
+    }
 
     // El código de PosGold sale del producto; si no tiene, se usa su referencia
     let bodega = "01";
@@ -537,6 +552,9 @@
     const who = String(o.customer_name || "cliente").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").slice(0, 24);
     XLSX.writeFile(wb, `PedidoExcel_${o.id}_${who}.xlsx`);
     showToast("Excel para PosGold descargado ✓");
+    if (boxes.length) {
+      window.alert("📦 ¡NO OLVIDES LAS CAJAS!\n\nEste pedido trae cajas que NO están en el Excel. Agrégalas manualmente en PosGold:\n\n" + boxesText(boxes));
+    }
   }
   el.ordersList.addEventListener("click", (e) => {
     const id = e.target.closest("[data-posgold]")?.dataset.posgold;
