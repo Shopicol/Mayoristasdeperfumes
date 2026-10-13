@@ -213,14 +213,19 @@
       `;
     }).join("");
 
+    // Regla: las CAJAS se venden por unidad (sin mínimo). El mínimo de 12 aplica solo a los
+    // perfumes sueltos: si hay al menos uno, deben sumar 12 (de cualquier referencia).
     const pooled = pooledQty();
     el.cartMinProgress.hidden = false;
-    if (pooled >= WHOLESALE_MIN_TOTAL) {
+    if (pooled === 0) {
       el.cartMinProgress.className = "cart-min-progress ok";
-      el.cartMinProgress.textContent = `✓ Mínimo completo (${pooled} unidades)`;
+      el.cartMinProgress.textContent = "✓ Las cajas se venden por unidad: no hay mínimo";
+    } else if (pooled >= WHOLESALE_MIN_TOTAL) {
+      el.cartMinProgress.className = "cart-min-progress ok";
+      el.cartMinProgress.textContent = `✓ Mínimo completo (${pooled} perfumes)`;
     } else {
       el.cartMinProgress.className = "cart-min-progress";
-      el.cartMinProgress.textContent = `Llevas ${pooled} de ${WHOLESALE_MIN_TOTAL} unidades mínimas — agrega ${WHOLESALE_MIN_TOTAL - pooled} más (puedes combinar perfumes distintos)`;
+      el.cartMinProgress.textContent = `Llevas ${pooled} de ${WHOLESALE_MIN_TOTAL} perfumes mínimos — agrega ${WHOLESALE_MIN_TOTAL - pooled} más (puedes combinar perfumes distintos; las cajas no cuentan)`;
     }
 
     el.cartTotal.textContent = money(cartTotal());
@@ -664,7 +669,7 @@
     el.modalPriceOld.textContent = showOld ? money(p.mayor) : "";
     el.modalQty.textContent = modalQtyValue;
     el.modalMinQtyNote.hidden = modalMinQty <= 1;
-    el.modalMinQtyNote.textContent = modalMinQty > 1 ? "Cuenta para tu surtido mínimo de 12 unidades — puedes combinarlo con otros perfumes" : "";
+    el.modalMinQtyNote.textContent = modalMinQty > 1 ? "Perfumes sueltos: mínimo 12 en total — puedes combinar cualquier referencia" : "";
     const detail = (p.note || "").trim();
     el.modalDescription.hidden = !detail;
     el.modalDescriptionText.textContent = detail;
@@ -857,8 +862,8 @@
     }
 
     const pooled = pooledQty();
-    if (pooled < WHOLESALE_MIN_TOTAL) {
-      el.checkoutError.textContent = `Te faltan ${WHOLESALE_MIN_TOTAL - pooled} unidades para completar el mínimo de ${WHOLESALE_MIN_TOTAL} (puedes combinar varios perfumes distintos).`;
+    if (pooled > 0 && pooled < WHOLESALE_MIN_TOTAL) {      // solo aplica si hay perfumes sueltos; las cajas van por unidad
+      el.checkoutError.textContent = `Te faltan ${WHOLESALE_MIN_TOTAL - pooled} perfumes para completar el mínimo de ${WHOLESALE_MIN_TOTAL} (puedes combinar varios perfumes distintos; las cajas no cuentan para el mínimo).`;
       el.checkoutError.hidden = false;
       return;
     }
