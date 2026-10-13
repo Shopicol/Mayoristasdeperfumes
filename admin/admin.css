@@ -198,3 +198,5 @@ input, select, textarea{ font-family:inherit; }
 .posgold-btn:hover{ border-color:var(--ink); background:var(--cream, #f5f0e6); }
 
 .order-boxes{ background:#FEF3C7; border:1px solid #F59E0B; color:#78350F; border-radius:8px; padding:8px 12px; font-size:12.5px; line-height:1.5; margin:10px 0 0; }
+
+.order-bs{ font-size:13px; font-weight:600; color:var(--ink-soft); }

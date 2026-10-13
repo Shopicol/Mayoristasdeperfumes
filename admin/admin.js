@@ -483,7 +483,7 @@
           </div>
           <p class="order-date">${date}</p>
           <p class="order-items">${itemsText}</p>
-          <p class="order-total">${money(o.total)}</p>
+          <p class="order-total">${money(o.total)}${Number(o.total_bs) > 0 ? ` <span class="order-bs">· Bs ${Number(o.total_bs).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (tasa ${Number(o.exchange_rate).toLocaleString("es-VE")})</span>` : ""}</p>
           <div class="order-pay-row">
             <span class="pay-badge ${o.payment_status || "pendiente"}">${PAY_LABELS[o.payment_status] || PAY_LABELS.pendiente}${o.payment_reference ? " · Ref " + o.payment_reference : ""}</span>
             <select class="order-pay-select" data-order-pay="${o.id}" title="Estado del pago">
