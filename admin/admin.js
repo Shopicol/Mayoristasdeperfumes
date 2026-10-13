@@ -493,7 +493,10 @@
           ${o.advisor_name ? `<p class="order-advisor">Asesora: ${o.advisor_name}</p>` : ""}
           <p class="order-meta">${o.payment_method || ""} · ${o.delivery_method || ""} · ${o.city || ""}${o.address ? " — " + o.address : ""}</p>
           ${(() => { const bx = (Array.isArray(o.items) ? o.items : []).filter(isBoxItem); return bx.length ? `<p class="order-boxes">📦 <strong>Cajas para agregar a mano en PosGold:</strong> ${bx.map(it => `${it.name} × ${Number(it.qty) || 0}`).join(" · ")}</p>` : ""; })()}
-          <div class="order-actions"><button type="button" class="posgold-btn" data-posgold="${o.id}">⬇ Excel para PosGold</button></div>
+          <div class="order-actions">
+            <button type="button" class="posgold-btn" data-posgold="${o.id}">⬇ Excel para PosGold</button>
+            ${o.payment_proof_path ? `<button type="button" class="posgold-btn proof-btn" data-proof="${o.payment_proof_path}">📎 Ver comprobante</button>` : ""}
+          </div>
         </div>
       `;
     }).join("");
@@ -559,6 +562,15 @@
   el.ordersList.addEventListener("click", (e) => {
     const id = e.target.closest("[data-posgold]")?.dataset.posgold;
     if (id) downloadPosgoldExcel(id);
+  });
+  // Comprobante de pago: está en una carpeta privada, así que se abre con un enlace temporal (10 min)
+  el.ordersList.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-proof]");
+    if (!btn) return;
+    const tab = window.open("about:blank", "_blank");          // se abre ya, para que el navegador no lo bloquee
+    const { data, error } = await supabaseClient.storage.from("payment-proofs").createSignedUrl(btn.dataset.proof, 600);
+    if (error || !data) { if (tab) tab.close(); showToast("No se pudo abrir el comprobante: " + ((error && error.message) || "sin permiso"), true); return; }
+    if (tab) tab.location.href = data.signedUrl; else window.location.href = data.signedUrl;
   });
 
   el.ordersList.addEventListener("change", async (e) => {
