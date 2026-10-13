@@ -452,3 +452,8 @@ input, select, textarea{ font-family:inherit; }
   font-family:"Montserrat",sans-serif; font-weight:700; font-size:12.5px; letter-spacing:.06em; text-transform:uppercase;
 }
 .paylater-ok:hover{ border-color:var(--text); }
+
+/* comprobante de pago (opcional) */
+#payProofWrap[hidden]{ display:none; }
+#payProofWrap input[type=file]{ font-size:13px; padding:9px 10px; }
+.checkout-form .opt{ font-style:normal; font-weight:400; color:var(--text-soft); font-size:12px; }

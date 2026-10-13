@@ -234,6 +234,11 @@
           <input type="text" id="custPayRef" placeholder="Ej: 123456">
           <small class="field-hint">Si aún no has pagado, elige «Pagar después».</small>
         </label>
+        <label id="payProofWrap" hidden>
+          <span>Comprobante de pago <em class="opt">(opcional)</em></span>
+          <input type="file" id="custPayProof" accept="image/*">
+          <small class="field-hint">Una foto o captura de tu pago. Solo la ve tu asesora.</small>
+        </label>
         <div class="pay-later-note" id="payLaterNote" hidden>
           <strong>Los pedidos que van pagos salen antes.</strong>
           Puedes pagar después: tu pedido queda registrado y, cuando pagues, avísale a tu asesora por WhatsApp.

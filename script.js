@@ -104,6 +104,8 @@
     custPayment: document.getElementById("custPayment"),
     paymentDetailsBox: document.getElementById("paymentDetailsBox"),
     payRefWrap: document.getElementById("payRefWrap"),
+    payProofWrap: document.getElementById("payProofWrap"),
+    custPayProof: document.getElementById("custPayProof"),
     custPayRef: document.getElementById("custPayRef"),
     payLaterNote: document.getElementById("payLaterNote"),
     payLaterOverlay: document.getElementById("payLaterOverlay"),
@@ -701,6 +703,29 @@
      --------------------------------------------------------------- */
   const ONLINE_PAYMENTS = ["Pago móvil", "Binance", "Zelle"];
 
+  /* Comprobante de pago (foto opcional): se reduce y se sube a una carpeta PRIVADA; solo la asesora del pedido la ve */
+  async function compressProof(file) {
+    const bmp = await createImageBitmap(file);                 // si el formato no es compatible (ej. HEIC), falla aquí
+    const s = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * s)), h = Math.max(1, Math.round(bmp.height * s));
+    const canvas = document.createElement("canvas"); canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h); ctx.drawImage(bmp, 0, 0, w, h);
+    if (bmp.close) bmp.close();
+    let blob = await new Promise(res => canvas.toBlob(res, "image/webp", 0.8));
+    if (!blob || blob.type !== "image/webp") blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", 0.82));
+    return blob;
+  }
+  async function uploadPaymentProof(file) {
+    const blob = await compressProof(file);
+    if (!blob || blob.size > 5 * 1024 * 1024) throw new Error("foto muy pesada");
+    const ext = blob.type === "image/webp" ? "webp" : "jpg";
+    const rnd = () => Math.floor(Math.random() * 1e9).toString(36);
+    const path = `proofs/${Date.now()}-${rnd()}-${rnd()}.${ext}`;
+    const { error } = await supabaseClient.storage.from("payment-proofs").upload(path, blob, { upsert: false, contentType: blob.type, cacheControl: "3600" });
+    if (error) throw error;
+    return path;
+  }
+
   /* Conversión a bolívares: total en $ × la tasa que se guarda en Ajustes (misma lógica que Shopicol) */
   function exchangeRate() { return Number(siteSettings && siteSettings.exchange_rate) || 0; }
   function formatBs(amountUsd) {
@@ -740,6 +765,8 @@
     el.payRefWrap.hidden = !online;
     el.custPayRef.required = online;
     if (!online) el.custPayRef.value = "";
+    el.payProofWrap.hidden = !online;                 // foto del comprobante: opcional, solo con pagos en línea
+    if (!online) el.custPayProof.value = "";
     el.payLaterNote.hidden = !(val === "Pagar después" || val === "Efectivo");
   }
   el.custPayment.addEventListener("change", () => {
@@ -882,6 +909,16 @@
     const subtotal = items.reduce((sum, i) => sum + i.qty * i.price, 0);
     const total = subtotal;
 
+    // Comprobante (opcional): si no se puede subir, el pedido sigue y el cliente lo manda por WhatsApp
+    let proofPath = "", proofFailed = false;
+    const proofFile = el.custPayProof.files && el.custPayProof.files[0];
+    if (proofFile && ONLINE_PAYMENTS.includes(el.custPayment.value)) {
+      el.submitOrderBtn.textContent = "Subiendo comprobante…";
+      try { proofPath = await uploadPaymentProof(proofFile); }
+      catch (e) { proofFailed = true; }
+      el.submitOrderBtn.textContent = "Enviando…";
+    }
+
     const order = {
       customer_name: el.custName.value.trim(),
       phone: el.custPhone.value.trim(),
@@ -892,6 +929,7 @@
       payment_method: el.custPayment.value,
       payment_reference: ONLINE_PAYMENTS.includes(el.custPayment.value) ? el.custPayRef.value.trim() : "",
       payment_status: ONLINE_PAYMENTS.includes(el.custPayment.value) ? "por_verificar" : "pendiente",
+      payment_proof_path: proofPath,
       exchange_rate: exchangeRate(),
       total_bs: el.custPayment.value === "Pago móvil" ? Math.round(total * exchangeRate() * 100) / 100 : 0,
       items,
@@ -921,6 +959,8 @@
       lines.push(`Método de pago: ${order.payment_method}`);
       if (order.payment_status === "por_verificar") lines.push(`💳 PAGO REPORTADO — Referencia: ${order.payment_reference}`);
       else lines.push(`⏳ PAGO PENDIENTE (pagará después)`);
+      if (proofPath) lines.push(`📎 Comprobante: subido en la web (míralo en tu admin)`);
+      else if (proofFailed) lines.push(`📎 Comprobante: no se pudo subir; lo enviaré por este chat`);
       lines.push(`Entrega: ${order.delivery_method}`);
       if (order.address) lines.push(`Dirección: ${order.address}`);
 
