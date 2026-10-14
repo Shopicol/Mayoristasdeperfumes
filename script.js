@@ -92,6 +92,7 @@
     checkoutOverlay: document.getElementById("checkoutOverlay"),
     checkoutClose: document.getElementById("checkoutClose"),
     advisorStep: document.getElementById("advisorStep"),
+    advisorPillWrap: document.getElementById("advisorPillWrap"),
     advisorYesBtn: document.getElementById("advisorYesBtn"),
     advisorNoBtn: document.getElementById("advisorNoBtn"),
     advisorList: document.getElementById("advisorList"),
@@ -788,6 +789,43 @@
     el.custAddress.required = val === "Delivery";
   });
 
+  /* ---------------------------------------------------------------
+     Asesora preferida: llega por el link personal (?asesora=dary) o es la última
+     que el cliente eligió. Así el pedido le llega a ella sin que el cliente tenga que acordarse.
+     --------------------------------------------------------------- */
+  const ADVISOR_PREF_KEY = "mpv_advisor_pref";
+  const slugify = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const readAdvisorPref = () => { try { return localStorage.getItem(ADVISOR_PREF_KEY) || ""; } catch (e) { return ""; } };
+  const saveAdvisorPref = slug => { try { if (slug) localStorage.setItem(ADVISOR_PREF_KEY, slug); } catch (e) {} };
+  const clearAdvisorPref = () => { try { localStorage.removeItem(ADVISOR_PREF_KEY); } catch (e) {} };
+  let preferredAdvisor = null;
+
+  function captureAdvisorFromURL() {
+    try {
+      const v = slugify(new URLSearchParams(window.location.search).get("asesora"));
+      if (v) saveAdvisorPref(v);                       // el link manda sobre lo recordado
+    } catch (e) {}
+  }
+  function showAdvisorPill(a) {
+    if (!a) { el.advisorPillWrap.hidden = true; el.advisorPillWrap.innerHTML = ""; return; }
+    const photo = a.image ? `<img src="${a.image}" alt="" class="advisor-pill-photo">` : `<span class="advisor-pill-photo advisor-pill-ph">${(a.name || "?").charAt(0)}</span>`;
+    el.advisorPillWrap.innerHTML = `<div class="advisor-pill">${photo}<span>Te atiende: <b>${a.name}</b></span><button type="button" class="advisor-pill-x" data-forget-advisor aria-label="Quitar asesora" title="Quitar">×</button></div>`;
+    el.advisorPillWrap.hidden = false;
+  }
+  el.advisorPillWrap.addEventListener("click", e => {
+    if (!e.target.closest("[data-forget-advisor]")) return;
+    clearAdvisorPref(); preferredAdvisor = null; showAdvisorPill(null);
+  });
+  async function loadAdvisorPreference() {
+    const slug = readAdvisorPref();
+    if (!slug) return;
+    const advisors = await fetchAdvisors();
+    const a = advisors.find(x => slugify(x.name) === slug || String(x.id) === slug);
+    if (!a) return;                                     // asesora inactiva o link viejo: se ignora
+    preferredAdvisor = a;
+    showAdvisorPill(a);
+  }
+
   let chosenAdvisor = null; // { id, name, phone }
 
   function openCheckout() {
@@ -802,6 +840,7 @@
     el.checkoutError.hidden = true;
     el.checkoutOverlay.hidden = false;
     document.body.style.overflow = "hidden";
+    if (preferredAdvisor) selectAdvisor(preferredAdvisor);   // ya viene con su asesora: salta la pregunta
   }
   function closeCheckout() {
     el.checkoutOverlay.hidden = true;
@@ -811,14 +850,21 @@
 
   function selectAdvisor(advisor) {
     chosenAdvisor = advisor;
+    saveAdvisorPref(slugify(advisor.name)); preferredAdvisor = advisor; showAdvisorPill(advisor);
     el.advisorStep.hidden = true;
     el.checkoutForm.hidden = false;
     el.advisorChosenTag.hidden = false;
     const photo = advisor.image
       ? `<img src="${advisor.image}" alt="" class="advisor-tag-photo">`
       : `<span class="advisor-tag-photo advisor-tag-photo-placeholder">${(advisor.name || "?").charAt(0)}</span>`;
-    el.advisorChosenTag.innerHTML = `${photo}<span>Te atiende: ${advisor.name}</span>`;
+    el.advisorChosenTag.innerHTML = `${photo}<span>Te atiende: ${advisor.name}</span><button type="button" class="advisor-change" data-change-advisor>Cambiar</button>`;
   }
+  el.advisorChosenTag.addEventListener("click", e => {
+    if (!e.target.closest("[data-change-advisor]")) return;
+    chosenAdvisor = null;
+    el.advisorChosenTag.hidden = true; el.checkoutForm.hidden = true;
+    el.advisorStep.hidden = false; el.advisorList.hidden = true;
+  });
 
   el.advisorYesBtn.addEventListener("click", async () => {
     el.advisorYesBtn.disabled = true;
@@ -861,6 +907,7 @@
   el.checkoutForm.addEventListener("submit", async e => {
     e.preventDefault();
     el.checkoutError.hidden = true;
+    await settingsReady;                              // la tasa del dólar siempre fresca antes de calcular el pedido
 
     if (!chosenAdvisor) {
       el.checkoutError.textContent = "Por favor selecciona o pide que te asignen una asesora primero.";
@@ -1027,23 +1074,60 @@
   /* ---------------------------------------------------------------
      Arranque
      --------------------------------------------------------------- */
-  async function init() {
-    const [products, settings, bannerData] = await Promise.all([fetchCatalog(), fetchSettings(), fetchBanners()]);
-    PRODUCTS = products;
-    siteSettings = settings;
-    applySettings(settings);
-    syncPaymentOptions();
+  /* ---------------------------------------------------------------
+     Catálogo guardado en el navegador: quien vuelve ve la tienda al instante con su copia,
+     y por detrás se revisa si algo cambió. Precios, disponibilidad y la tasa del dólar
+     SIEMPRE se vuelven a pedir frescos; si la red falla, se sigue mostrando la última copia buena.
+     --------------------------------------------------------------- */
+  const CATALOG_CACHE_KEY = "mpv_catalog_v2";
+  function readCatalogCache() {
+    try { const c = JSON.parse(localStorage.getItem(CATALOG_CACHE_KEY) || "null"); return c && Array.isArray(c.products) && c.products.length ? c : null; }
+    catch (e) { return null; }
+  }
+  function saveCatalogCache(products, banners) {
+    try { localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify({ t: Date.now(), products, banners })); } catch (e) {}
+  }
+  let settingsReady = Promise.resolve(null);
 
-    applyCategoryFromURL();
+  function paintStore(bannerData) {
     renderMarquee();
     renderCategoryNav();
     renderCategoryTiles();
     renderBanners(bannerData);
     renderCategoryChips();
     renderBrandOptions();
+    el.brandSelect.value = state.brand || "";         // al repintar no se pierde la marca elegida
     renderFeatured();
     render();
     updateCartBadge();
+  }
+
+  async function init() {
+    captureAdvisorFromURL();
+    const cached = readCatalogCache();
+    settingsReady = fetchSettings().then(s => { siteSettings = s; applySettings(s); syncPaymentOptions(); return s; });
+
+    let painted = false;
+    if (cached) {                                       // 1) al instante, con la copia guardada
+      PRODUCTS = cached.products;
+      applyCategoryFromURL();
+      paintStore(cached.banners || []);
+      painted = true;
+    }
+    const [products, bannerData] = await Promise.all([fetchCatalog(), fetchBanners()]);   // 2) lo fresco
+    await settingsReady;
+    if (products.length) {
+      const changed = !cached || JSON.stringify([products, bannerData]) !== JSON.stringify([cached.products, cached.banners || []]);
+      PRODUCTS = products;
+      saveCatalogCache(products, bannerData);
+      if (!painted) { applyCategoryFromURL(); paintStore(bannerData); }
+      else if (changed) paintStore(bannerData);
+    } else if (!painted) {                              // sin red y sin copia: como antes
+      PRODUCTS = [];
+      applyCategoryFromURL();
+      paintStore(bannerData);
+    }                                                    // con copia y sin red: se queda lo que ya se ve
+    loadAdvisorPreference();
   }
 
   document.addEventListener("DOMContentLoaded", init);

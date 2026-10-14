@@ -457,3 +457,21 @@ input, select, textarea{ font-family:inherit; }
 #payProofWrap[hidden]{ display:none; }
 #payProofWrap input[type=file]{ font-size:13px; padding:9px 10px; }
 .checkout-form .opt{ font-style:normal; font-weight:400; color:var(--text-soft); font-size:12px; }
+
+
+/* ============================= ASESORA PREFERIDA (link personal) ============================= */
+.advisor-pill-wrap{ display:flex; justify-content:center; padding:12px 16px 0; }
+.advisor-pill-wrap[hidden]{ display:none; }
+.advisor-pill{
+  display:inline-flex; align-items:center; gap:9px; background:#fff; border:1.5px solid var(--gold);
+  border-radius:999px; padding:5px 8px 5px 6px; font-size:13px; color:var(--text);
+}
+.advisor-pill b{ color:var(--gold-bright); }
+.advisor-pill-photo{ width:30px; height:30px; border-radius:50%; object-fit:cover; flex-shrink:0; background:#eee; }
+.advisor-pill-ph{ display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--gold-bright); }
+.advisor-pill-x{ border:none; background:none; color:var(--text-soft); font-size:18px; line-height:1; cursor:pointer; padding:0 6px; }
+.advisor-pill-x:hover{ color:var(--text); }
+.advisor-change{
+  margin-left:auto; border:none; background:none; color:var(--text-soft); font-size:12px; text-decoration:underline; cursor:pointer; padding:0 0 0 12px;
+}
+.advisor-chosen-tag, #advisorChosenTag{ display:flex; align-items:center; }
