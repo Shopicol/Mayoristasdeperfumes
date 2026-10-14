@@ -97,6 +97,10 @@
 
     <!-- ============ TAB: PEDIDOS ============ -->
     <div class="admin-tab-panel" id="tabOrders" hidden>
+      <div class="my-link-box" id="myLinkBox" hidden>
+        <div class="my-link-text"><strong>Tu link personal</strong><span>Envíaselo a tus clientes: cuando lo abren, el pedido te llega a ti.</span></div>
+        <div class="my-link-row"><input type="text" id="myLinkUrl" readonly><button type="button" class="btn-primary" id="copyMyLinkBtn">Copiar</button></div>
+      </div>
       <div class="orders-list" id="ordersList"></div>
       <p class="admin-empty" id="ordersEmpty" hidden>Todavía no hay pedidos.</p>
     </div>
@@ -174,6 +178,7 @@
         <p class="banners-hint">Las asesoras activas reciben clientes por turnos cuando alguien pide "asígname una". El orden de abajo es el orden del turno.</p>
         <button id="newAdvisorBtn" class="btn-primary">+ Nueva asesora</button>
       </section>
+      <div class="advisor-links" id="advisorLinks"></div>
       <div class="table-wrap">
         <table class="admin-table">
           <thead>

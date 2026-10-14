@@ -200,3 +200,17 @@ input, select, textarea{ font-family:inherit; }
 .order-boxes{ background:#FEF3C7; border:1px solid #F59E0B; color:#78350F; border-radius:8px; padding:8px 12px; font-size:12.5px; line-height:1.5; margin:10px 0 0; }
 
 .order-bs{ font-size:13px; font-weight:600; color:var(--ink-soft); }
+
+
+/* ============================= LINK PERSONAL DE LA ASESORA ============================= */
+.my-link-box{ background:#fff; border:1.5px solid var(--gold-bright, #B8912A); border-radius:14px; padding:16px 18px; margin:0 0 18px; display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+.my-link-box[hidden]{ display:none; }
+.my-link-text{ display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--ink-soft); }
+.my-link-text strong{ color:var(--ink); font-size:14.5px; }
+.my-link-row{ display:flex; gap:8px; flex:1 1 360px; max-width:560px; }
+.my-link-row input, .advisor-link-row input{ flex:1; min-width:0; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:13px; background:#faf7f0; color:var(--ink); }
+.advisor-links{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin-bottom:18px; }
+.advisor-links h3{ margin:0 0 4px; font-size:15px; }
+.advisor-links:empty{ display:none; }
+.advisor-link-row{ display:flex; align-items:center; gap:10px; margin-top:8px; }
+.advisor-link-row b{ width:90px; flex-shrink:0; font-size:13.5px; }

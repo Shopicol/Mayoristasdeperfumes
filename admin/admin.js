@@ -90,6 +90,10 @@
     bannerFieldSubtitle: document.getElementById("bannerFieldSubtitle"),
     bannerFieldImageFile: document.getElementById("bannerFieldImageFile"),
     bannerFieldImagePreview: document.getElementById("bannerFieldImagePreview"),
+    myLinkBox: document.getElementById("myLinkBox"),
+    myLinkUrl: document.getElementById("myLinkUrl"),
+    copyMyLinkBtn: document.getElementById("copyMyLinkBtn"),
+    advisorLinks: document.getElementById("advisorLinks"),
     bannerFieldMobileFile: document.getElementById("bannerFieldMobileFile"),
     bannerFieldMobilePreview: document.getElementById("bannerFieldMobilePreview"),
     bannerRemoveMobileBtn: document.getElementById("bannerRemoveMobileBtn"),
@@ -189,6 +193,28 @@
     return mine || null;
   }
 
+  /* Link personal de cada asesora: al abrirlo, la tienda deja elegida a esa asesora */
+  const SITE_URL = "https://www.mayoristasdeperfumesven.com/";
+  const slugOf = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const advisorLink = name => `${SITE_URL}?asesora=${slugOf(name)}`;
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; }
+    catch (e) {
+      const t = document.createElement("textarea"); t.value = text; t.style.cssText = "position:fixed;opacity:0"; document.body.appendChild(t); t.select();
+      let ok = false; try { ok = document.execCommand("copy"); } catch (e2) {} t.remove(); return ok;
+    }
+  }
+  el.copyMyLinkBtn.addEventListener("click", async () => {
+    const ok = await copyText(el.myLinkUrl.value);
+    showToast(ok ? "Link copiado ✓" : "No se pudo copiar: selecciónalo y cópialo a mano", !ok);
+  });
+  el.advisorLinks.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-copy-link]");
+    if (!btn) return;
+    const ok = await copyText(btn.dataset.copyLink);
+    showToast(ok ? "Link copiado ✓" : "No se pudo copiar", !ok);
+  });
+
   async function enterAdmin(user) {
     let staff = null;
     try { staff = await loadStaffRole(user); }
@@ -215,6 +241,7 @@
         name = data ? data.name : "";
       }
       el.adminUserEmail.textContent = name ? `Asesora ${name}` : user.email;
+      if (name) { el.myLinkUrl.value = advisorLink(name); el.myLinkBox.hidden = false; }
       loadProducts();
       loadOrders();
       document.querySelector('.admin-tab[data-tab="orders"]').click();
@@ -784,7 +811,14 @@
     renderAdvisorsTable();
   }
 
+  function renderAdvisorLinks() {
+    const activas = allAdvisors.filter(a => a.active);
+    el.advisorLinks.innerHTML = activas.length ? `<h3>Links personales</h3><p class="banners-hint">Cada asesora manda el suyo: al abrirlo, el pedido le llega a ella.</p>` + activas.map(a => `
+      <div class="advisor-link-row"><b>${a.name}</b><input type="text" readonly value="${advisorLink(a.name)}"><button type="button" class="posgold-btn" data-copy-link="${advisorLink(a.name)}">Copiar</button></div>`).join("") : "";
+  }
+
   function renderAdvisorsTable() {
+    renderAdvisorLinks();
     el.advisorsTableBody.innerHTML = allAdvisors.map(a => `
       <tr>
         <td><img class="row-thumb" src="${a.image || ''}" alt=""></td>
