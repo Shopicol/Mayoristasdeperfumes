@@ -1159,27 +1159,59 @@
     return spEl;
   }
   const anyModalOpen = () => !!document.querySelector(".modal-overlay:not([hidden]), .cart-overlay:not([hidden])");
+  /* Pedidos de EJEMPLO: siempre rotulados como ejemplo, sin nombre y sin decir que alguien "compró".
+     Muestran cómo arman sus pedidos los clientes (perfumes en lotes de 12 y cajas del catálogo). */
+  function exampleOrders() {
+    const mk = (perfumes, boxIdx = null, boxQty = 1) => ({ kind: "example", perfumes, boxIdx, boxQty });
+    return [mk(36), mk(48, 0), mk(24), mk(60, 1), mk(72), mk(0, 2, 2), mk(36, 3), mk(24, 4)];
+  }
+  function exampleBoxes(r) {                         // las cajas se toman del catálogo EN EL MOMENTO de mostrar el ejemplo
+    const names = PRODUCTS.filter(p => p.category === "Cajas / Combos" && p.avail !== false).map(p => p.name);
+    return r.boxIdx != null && names.length ? [{ name: names[r.boxIdx % names.length], qty: r.boxQty }] : null;
+  }
+  function mixQueue(real) {                         // 2 pedidos reales, 1 de ejemplo (si hay pocos reales, se alternan)
+    const ex = exampleOrders(), out = [];
+    let ei = 0;
+    const every = real.length >= 4 ? 2 : 1;
+    real.forEach((r, i) => { out.push(r); if ((i + 1) % every === 0) out.push(ex[ei++ % ex.length]); });
+    if (!real.length) return ex;
+    return out;
+  }
   function showSocialProof() {
     const r = spQueue[spIdx % spQueue.length]; spIdx++;
     if (!anyModalOpen()) {
-      const d = describeOrder(r), box = buildSocialProofDOM();
-      box.querySelector(".sp-l1").innerHTML = `<b></b> ${d.verb}`;
-      box.querySelector(".sp-l1 b").textContent = d.who;
-      box.querySelector(".sp-l2").textContent = d.what;
-      box.querySelector(".sp-l3").textContent = d.when;
+      const box = buildSocialProofDOM();
+      const isEx = r.kind === "example";
+      const bx = isEx ? exampleBoxes(r) : r.boxes;
+      const parts = [...(Array.isArray(bx) ? bx.map(b => `${b.qty} ${b.name}`) : []), ...(r.perfumes > 0 ? [`${r.perfumes} ${r.perfumes === 1 ? "perfume" : "perfumes"}`] : [])];
+      if (!parts.length) { spNextT = setTimeout(showSocialProof, 300); return; }      // ejemplo sin contenido (aún no hay cajas): se salta
+      const what = parts.length > 1 ? parts.slice(0, -1).join(", ") + " y " + parts[parts.length - 1] : parts[0] || "";
+      box.classList.toggle("sp-example", isEx);
+      box.querySelector(".sp-icon").textContent = isEx ? "📦" : "🛍️";
+      if (isEx) {
+        box.querySelector(".sp-l1").innerHTML = `<span class="sp-tag">EJEMPLO</span> de pedido`;
+        box.querySelector(".sp-l3").textContent = "Así arman su pedido nuestros clientes";
+      } else {
+        const d = describeOrder(r);
+        box.querySelector(".sp-l1").innerHTML = `<b></b> ${d.verb}`;
+        box.querySelector(".sp-l1 b").textContent = d.who;
+        box.querySelector(".sp-l3").textContent = d.when;
+      }
+      box.querySelector(".sp-l2").textContent = what;
       box.classList.add("visible");
       clearTimeout(spHideT); spHideT = setTimeout(() => box.classList.remove("visible"), SP_SHOW_MS);
     }
-    if (spQueue.length < 4 && spIdx >= spQueue.length) return;      // con pocos pedidos, se muestran una sola vuelta
     spNextT = setTimeout(showSocialProof, SP_SHOW_MS + SP_GAP_MS);
   }
   async function startSocialProof() {
     if (spStarted) return; spStarted = true;
     try { if (sessionStorage.getItem("mpv_hide_feed") === "1") return; } catch (e) {}
-    if (!SUPABASE_READY) return;
     let rows = [];
-    try { const { data } = await supabaseClient.rpc("public_recent_orders", { p_days: 30, p_limit: 15 }); rows = Array.isArray(data) ? data : []; } catch (e) {}
-    spQueue = rows.filter(r => r && r.display_name && (r.perfumes > 0 || (r.boxes && r.boxes.length)));
+    if (SUPABASE_READY) {
+      try { const { data } = await supabaseClient.rpc("public_recent_orders", { p_days: 90, p_limit: 15 }); rows = Array.isArray(data) ? data : []; } catch (e) {}
+    }
+    const real = rows.filter(r => r && r.display_name && (r.perfumes > 0 || (r.boxes && r.boxes.length))).map(r => Object.assign({ kind: "real" }, r));
+    spQueue = mixQueue(real);
     if (!spQueue.length) return;
     spNextT = setTimeout(showSocialProof, SP_FIRST_DELAY);
   }
