@@ -93,6 +93,9 @@
     checkoutClose: document.getElementById("checkoutClose"),
     advisorStep: document.getElementById("advisorStep"),
     advisorPillWrap: document.getElementById("advisorPillWrap"),
+    veOverlay: document.getElementById("veOverlay"),
+    veAccept: document.getElementById("veAccept"),
+    custHideName: document.getElementById("custHideName"),
     advisorYesBtn: document.getElementById("advisorYesBtn"),
     advisorNoBtn: document.getElementById("advisorNoBtn"),
     advisorList: document.getElementById("advisorList"),
@@ -977,6 +980,7 @@
       payment_reference: ONLINE_PAYMENTS.includes(el.custPayment.value) ? el.custPayRef.value.trim() : "",
       payment_status: ONLINE_PAYMENTS.includes(el.custPayment.value) ? "por_verificar" : "pendiente",
       payment_proof_path: proofPath,
+      hide_from_feed: !!el.custHideName.checked,
       exchange_rate: exchangeRate(),
       total_bs: el.custPayment.value === "Pago móvil" ? Math.round(total * exchangeRate() * 100) / 100 : 0,
       items,
@@ -1102,8 +1106,87 @@
     updateCartBadge();
   }
 
+  /* ---------------------------------------------------------------
+     Aviso "SOLO VENDEMOS EN VENEZUELA": se muestra una vez por visita, antes de usar la tienda.
+     --------------------------------------------------------------- */
+  function veAlreadyAccepted() { try { return sessionStorage.getItem("mpv_ve_ok") === "1"; } catch (e) { return false; } }
+  function initVenezuelaNotice() {
+    if (veAlreadyAccepted()) { startSocialProof(); return; }
+    document.body.style.overflow = "hidden";
+    el.veAccept.focus();
+    el.veAccept.addEventListener("click", () => {
+      try { sessionStorage.setItem("mpv_ve_ok", "1"); } catch (e) {}
+      document.documentElement.classList.add("ve-ok");
+      document.body.style.overflow = "";
+      startSocialProof();
+    });
+  }
+
+  /* ---------------------------------------------------------------
+     Avisos de "compras recientes": SOLO pedidos reales (nombre + inicial del apellido).
+     Nunca se inventan ventas. Si no hay pedidos reales recientes, no se muestra nada.
+     --------------------------------------------------------------- */
+  const SP_FIRST_DELAY = 7000, SP_SHOW_MS = 7000, SP_GAP_MS = 14000;
+  let spQueue = [], spIdx = 0, spEl = null, spStarted = false, spHideT = null, spNextT = null;
+
+  function timeAgoEs(dateStr) {
+    const mins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+    if (mins < 1) return "justo ahora";
+    if (mins < 60) return `hace ${mins} min`;
+    const h = Math.floor(mins / 60);
+    if (h < 24) return `hace ${h} ${h === 1 ? "hora" : "horas"}`;
+    const d = Math.floor(h / 24);
+    return `hace ${d} ${d === 1 ? "día" : "días"}`;
+  }
+  function describeOrder(r) {
+    const boxes = Array.isArray(r.boxes) ? r.boxes.map(b => `${b.qty} ${b.name}`) : [];
+    const perf = r.perfumes > 0 ? [`${r.perfumes} ${r.perfumes === 1 ? "perfume" : "perfumes"}`] : [];
+    const parts = [...boxes, ...perf];
+    const what = parts.length > 1 ? parts.slice(0, -1).join(", ") + " y " + parts[parts.length - 1] : parts[0] || "";
+    return { who: r.display_name, verb: r.paid ? "compró" : "hizo un pedido de", what, when: timeAgoEs(r.created_at) };
+  }
+  function buildSocialProofDOM() {
+    if (spEl) return spEl;
+    spEl = document.createElement("div");
+    spEl.className = "sp-toast";
+    spEl.setAttribute("role", "status");
+    spEl.innerHTML = `<button type="button" class="sp-close" aria-label="Cerrar">×</button><div class="sp-icon" aria-hidden="true">🛍️</div><div class="sp-body"><p class="sp-l1"></p><p class="sp-l2"></p><p class="sp-l3"></p></div>`;
+    document.body.appendChild(spEl);
+    spEl.querySelector(".sp-close").addEventListener("click", () => {
+      spEl.classList.remove("visible"); clearTimeout(spNextT); clearTimeout(spHideT);
+      try { sessionStorage.setItem("mpv_hide_feed", "1"); } catch (e) {}
+    });
+    return spEl;
+  }
+  const anyModalOpen = () => !!document.querySelector(".modal-overlay:not([hidden]), .cart-overlay:not([hidden])");
+  function showSocialProof() {
+    const r = spQueue[spIdx % spQueue.length]; spIdx++;
+    if (!anyModalOpen()) {
+      const d = describeOrder(r), box = buildSocialProofDOM();
+      box.querySelector(".sp-l1").innerHTML = `<b></b> ${d.verb}`;
+      box.querySelector(".sp-l1 b").textContent = d.who;
+      box.querySelector(".sp-l2").textContent = d.what;
+      box.querySelector(".sp-l3").textContent = d.when;
+      box.classList.add("visible");
+      clearTimeout(spHideT); spHideT = setTimeout(() => box.classList.remove("visible"), SP_SHOW_MS);
+    }
+    if (spQueue.length < 4 && spIdx >= spQueue.length) return;      // con pocos pedidos, se muestran una sola vuelta
+    spNextT = setTimeout(showSocialProof, SP_SHOW_MS + SP_GAP_MS);
+  }
+  async function startSocialProof() {
+    if (spStarted) return; spStarted = true;
+    try { if (sessionStorage.getItem("mpv_hide_feed") === "1") return; } catch (e) {}
+    if (!SUPABASE_READY) return;
+    let rows = [];
+    try { const { data } = await supabaseClient.rpc("public_recent_orders", { p_days: 30, p_limit: 15 }); rows = Array.isArray(data) ? data : []; } catch (e) {}
+    spQueue = rows.filter(r => r && r.display_name && (r.perfumes > 0 || (r.boxes && r.boxes.length)));
+    if (!spQueue.length) return;
+    spNextT = setTimeout(showSocialProof, SP_FIRST_DELAY);
+  }
+
   async function init() {
     captureAdvisorFromURL();
+    initVenezuelaNotice();
     const cached = readCatalogCache();
     settingsReady = fetchSettings().then(s => { siteSettings = s; applySettings(s); syncPaymentOptions(); return s; });
 
