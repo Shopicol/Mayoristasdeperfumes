@@ -93,6 +93,11 @@
     checkoutClose: document.getElementById("checkoutClose"),
     advisorStep: document.getElementById("advisorStep"),
     advisorPillWrap: document.getElementById("advisorPillWrap"),
+    advisorConfirm: document.getElementById("advisorConfirm"),
+    advisorConfirmName: document.getElementById("advisorConfirmName"),
+    advisorConfirmYes: document.getElementById("advisorConfirmYes"),
+    advisorConfirmOther: document.getElementById("advisorConfirmOther"),
+    advisorAsk: document.getElementById("advisorAsk"),
     veOverlay: document.getElementById("veOverlay"),
     veAccept: document.getElementById("veAccept"),
     custHideName: document.getElementById("custHideName"),
@@ -802,11 +807,13 @@
   const saveAdvisorPref = slug => { try { if (slug) localStorage.setItem(ADVISOR_PREF_KEY, slug); } catch (e) {} };
   const clearAdvisorPref = () => { try { localStorage.removeItem(ADVISOR_PREF_KEY); } catch (e) {} };
   let preferredAdvisor = null;
+  let prefFromLink = false;       // true solo si el cliente entró AHORA por un link personal
+  let advisorHow = "";            // cómo quedó asignada: link · recordada · elegida · turno
 
   function captureAdvisorFromURL() {
     try {
       const v = slugify(new URLSearchParams(window.location.search).get("asesora"));
-      if (v) saveAdvisorPref(v);                       // el link manda sobre lo recordado
+      if (v) { saveAdvisorPref(v); prefFromLink = true; }     // el link manda sobre lo recordado
     } catch (e) {}
   }
   function showAdvisorPill(a) {
@@ -843,16 +850,29 @@
     el.checkoutError.hidden = true;
     el.checkoutOverlay.hidden = false;
     document.body.style.overflow = "hidden";
-    if (preferredAdvisor) selectAdvisor(preferredAdvisor);   // ya viene con su asesora: salta la pregunta
+    el.advisorConfirm.hidden = true; el.advisorAsk.hidden = false; setSubmitLabel();
+    if (preferredAdvisor) {
+      if (prefFromLink) selectAdvisor(preferredAdvisor, "link");      // entró por el link de ella: se respeta, sin preguntar
+      else {                                                           // la tienda solo la RECUERDA: se pide confirmar
+        el.advisorConfirmName.textContent = preferredAdvisor.name;
+        el.advisorConfirmYes.textContent = `Sí, con ${preferredAdvisor.name}`;
+        el.advisorConfirm.hidden = false; el.advisorAsk.hidden = true;
+      }
+    }
   }
+  el.advisorConfirmYes.addEventListener("click", () => { if (preferredAdvisor) selectAdvisor(preferredAdvisor, "recordada"); });
+  el.advisorConfirmOther.addEventListener("click", () => { el.advisorConfirm.hidden = true; el.advisorAsk.hidden = false; });
   function closeCheckout() {
     el.checkoutOverlay.hidden = true;
     document.body.style.overflow = "";
   }
   el.checkoutBtn.addEventListener("click", openCheckout);
 
-  function selectAdvisor(advisor) {
-    chosenAdvisor = advisor;
+  function setSubmitLabel() {          // el botón dice a QUIÉN va el pedido
+    el.submitOrderBtn.textContent = chosenAdvisor ? `Enviar pedido a ${chosenAdvisor.name} por WhatsApp` : "Enviar pedido por WhatsApp";
+  }
+  function selectAdvisor(advisor, how) {
+    chosenAdvisor = advisor; advisorHow = how || "elegida"; setSubmitLabel();
     saveAdvisorPref(slugify(advisor.name)); preferredAdvisor = advisor; showAdvisorPill(advisor);
     el.advisorStep.hidden = true;
     el.checkoutForm.hidden = false;
@@ -864,9 +884,10 @@
   }
   el.advisorChosenTag.addEventListener("click", e => {
     if (!e.target.closest("[data-change-advisor]")) return;
-    chosenAdvisor = null;
+    chosenAdvisor = null; advisorHow = ""; setSubmitLabel();
     el.advisorChosenTag.hidden = true; el.checkoutForm.hidden = true;
     el.advisorStep.hidden = false; el.advisorList.hidden = true;
+    el.advisorConfirm.hidden = true; el.advisorAsk.hidden = false;
   });
 
   el.advisorYesBtn.addEventListener("click", async () => {
@@ -891,7 +912,7 @@
     if (!btn) return;
     const advisors = JSON.parse(el.advisorList.dataset.advisors || "[]");
     const advisor = advisors.find(a => String(a.id) === btn.dataset.advisorId);
-    if (advisor) selectAdvisor(advisor);
+    if (advisor) selectAdvisor(advisor, "elegida");
   });
 
   el.advisorNoBtn.addEventListener("click", async () => {
@@ -900,7 +921,7 @@
     const advisor = await getNextAdvisor();
     el.advisorNoBtn.disabled = false;
     el.advisorNoBtn.textContent = "No, asígname una";
-    if (advisor) selectAdvisor(advisor);
+    if (advisor) selectAdvisor(advisor, "turno");
     else el.checkoutError.textContent = "No se pudo asignar una asesora. Intenta de nuevo.", (el.checkoutError.hidden = false);
   });
 
@@ -989,6 +1010,7 @@
       total,
       status: "nuevo",
       advisor_name: chosenAdvisor ? chosenAdvisor.name : "",
+      assigned_by: advisorHow,
       advisor_phone: chosenAdvisor ? chosenAdvisor.phone : "",
     };
 
@@ -1032,7 +1054,7 @@
       el.checkoutError.hidden = false;
     } finally {
       el.submitOrderBtn.disabled = false;
-      el.submitOrderBtn.textContent = "Enviar pedido por WhatsApp";
+      setSubmitLabel();
     }
   });
 
@@ -1065,7 +1087,7 @@
   if (footerWhatsappBtn) {
     footerWhatsappBtn.addEventListener("click", async () => {
       footerWhatsappBtn.disabled = true;
-      const advisor = await getNextAdvisor();
+      const advisor = preferredAdvisor || await getNextAdvisor();      // si ya tiene asesora, va con ella; si no, por turnos
       footerWhatsappBtn.disabled = false;
       const rawNumber = (advisor && advisor.phone) || (typeof WHATSAPP_NUMBER !== "undefined" ? WHATSAPP_NUMBER : "");
       if (!rawNumber || rawNumber.includes("PEGA_AQUI")) return;

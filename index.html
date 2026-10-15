@@ -218,10 +218,20 @@
     <p class="checkout-sub">Con estos datos armamos tu pedido y te contactamos por WhatsApp para confirmar.</p>
 
     <div class="advisor-step" id="advisorStep">
-      <p class="advisor-question">¿Ya tienes una asesora de ventas?</p>
-      <div class="advisor-yesno">
-        <button type="button" id="advisorYesBtn">Sí, ya tengo una</button>
-        <button type="button" id="advisorNoBtn">No, asígname una</button>
+      <!-- el cliente ya tenía una asesora recordada: se le pide confirmar (nunca se asigna en silencio) -->
+      <div class="advisor-confirm" id="advisorConfirm" hidden>
+        <p class="advisor-question">La última vez te atendió <strong id="advisorConfirmName"></strong>. ¿Quieres seguir con ella?</p>
+        <div class="advisor-yesno">
+          <button type="button" id="advisorConfirmYes">Sí, con ella</button>
+          <button type="button" id="advisorConfirmOther">Elegir otra asesora</button>
+        </div>
+      </div>
+      <div class="advisor-ask" id="advisorAsk">
+        <p class="advisor-question">¿Ya tienes una asesora de ventas?</p>
+        <div class="advisor-yesno">
+          <button type="button" id="advisorYesBtn">Sí, ya tengo una</button>
+          <button type="button" id="advisorNoBtn">No, asígname una</button>
+        </div>
       </div>
       <div class="advisor-list" id="advisorList" hidden><!-- filled by JS --></div>
     </div>

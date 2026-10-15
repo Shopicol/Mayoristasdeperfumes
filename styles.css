@@ -520,3 +520,7 @@ input, select, textarea{ font-family:inherit; }
 /* aviso de EJEMPLO: siempre rotulado, se distingue de una compra real */
 .sp-toast.sp-example{ background:#FBF7EA; border-left-color:#0C0906; }
 .sp-tag{ display:inline-block; background:#0C0906; color:#E8C468; font-family:"Montserrat",sans-serif; font-weight:800; font-size:10.5px; letter-spacing:.14em; padding:2px 7px; border-radius:3px; vertical-align:1px; }
+
+/* confirmar la asesora recordada */
+.advisor-confirm strong{ color:var(--gold-bright); }
+.advisor-ask[hidden], .advisor-confirm[hidden]{ display:none; }
