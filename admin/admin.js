@@ -517,7 +517,7 @@
               ${Object.entries(PAY_LABELS).map(([val, label]) => `<option value="${val}" ${(o.payment_status || "pendiente") === val ? "selected" : ""}>${label}</option>`).join("")}
             </select>
           </div>
-          ${o.advisor_name ? `<p class="order-advisor">Asesora: ${o.advisor_name}</p>` : ""}
+          ${o.advisor_name ? `<p class="order-advisor">Asesora: ${o.advisor_name}${({ link: " · por su link personal", recordada: " · la recordó la tienda y el cliente la confirmó", elegida: " · la eligió el cliente", turno: " · asignada por turno" })[o.assigned_by] || ""}</p>` : ""}
           <p class="order-meta">${o.payment_method || ""} · ${o.delivery_method || ""} · ${o.city || ""}${o.address ? " — " + o.address : ""}</p>
           ${(() => { const bx = (Array.isArray(o.items) ? o.items : []).filter(isBoxItem); return bx.length ? `<p class="order-boxes">📦 <strong>Cajas para agregar a mano en PosGold:</strong> ${bx.map(it => `${it.name} × ${Number(it.qty) || 0}`).join(" · ")}</p>` : ""; })()}
           <div class="order-actions">
