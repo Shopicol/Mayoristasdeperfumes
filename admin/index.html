@@ -61,6 +61,11 @@
         <div class="stat-card"><strong id="statAvailProducts">0</strong><span>Disponibles</span></div>
         <div class="stat-card"><strong id="statOutProducts">0</strong><span>Agotados</span></div>
         <div class="stat-card"><strong id="statNewOrders">0</strong><span>Pedidos nuevos</span></div>
+        <div class="stat-card stat-money" id="salesTodayCard" hidden>
+          <strong id="statSalesToday">$0.00</strong>
+          <span>Ventas de hoy · pedidos Tomado y Entregado</span>
+          <small id="statSalesTodayDetail"></small>
+        </div>
       </div>
     </div>
 
@@ -232,8 +237,20 @@
           <label><span>Pago Móvil — Banco</span><input type="text" id="settingsPagoMovilBank"></label>
         </div>
         <div class="form-row two">
-          <label><span>Binance — Correo/ID</span><input type="text" id="settingsBinanceEmail"></label>
-          <label><span>Binance — Titular</span><input type="text" id="settingsBinanceHolder"></label>
+          <label>
+            <span>Binance — ID</span>
+            <input type="text" id="settingsBinanceId" inputmode="numeric" placeholder="Ej: 123456789">
+            <small class="field-hint">Solo el ID (Binance Pay). Por seguridad ya no se guardan nombre ni correo; al guardar se borran los que hubiera.</small>
+          </label>
+        </div>
+        <div class="form-row two">
+          <label>
+            <span>Productos agotados en el catálogo</span>
+            <select id="settingsHideSoldout">
+              <option value="true">Ocultarlos del catálogo</option>
+              <option value="false">Mostrarlos con la etiqueta «Agotado»</option>
+            </select>
+          </label>
         </div>
         <div class="form-row two">
           <label><span>Zelle — Correo</span><input type="text" id="settingsZelleEmail"></label>

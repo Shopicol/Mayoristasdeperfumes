@@ -117,8 +117,11 @@
     settingsPagoMovilPhone: document.getElementById("settingsPagoMovilPhone"),
     settingsPagoMovilCedula: document.getElementById("settingsPagoMovilCedula"),
     settingsPagoMovilBank: document.getElementById("settingsPagoMovilBank"),
-    settingsBinanceEmail: document.getElementById("settingsBinanceEmail"),
-    settingsBinanceHolder: document.getElementById("settingsBinanceHolder"),
+    settingsBinanceId: document.getElementById("settingsBinanceId"),
+    settingsHideSoldout: document.getElementById("settingsHideSoldout"),
+    salesTodayCard: document.getElementById("salesTodayCard"),
+    statSalesToday: document.getElementById("statSalesToday"),
+    statSalesTodayDetail: document.getElementById("statSalesTodayDetail"),
     settingsZelleEmail: document.getElementById("settingsZelleEmail"),
     settingsZelleHolder: document.getElementById("settingsZelleHolder"),
     saveSettingsBtn: document.getElementById("saveSettingsBtn"),
@@ -482,6 +485,22 @@
   const STATUS_LABELS = { nuevo: "🆕 Nuevo", tomado: "📦 Tomado", entregado: "✅ Entregado", cancelado: "❌ Cancelado" };
   const PAY_LABELS = { pendiente: "⏳ Pago pendiente", por_verificar: "🔎 Pago por verificar", pagado: "✅ Pagado" };
 
+  /* Ventas de hoy: suma de los pedidos TOMADO y ENTREGADO creados hoy (hora de Venezuela). Solo la administradora la ve. */
+  function paintSales() {
+    if (currentRole !== "admin") { el.salesTodayCard.hidden = true; return; }
+    const dayFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Caracas", year: "numeric", month: "2-digit", day: "2-digit" });
+    const today = dayFmt.format(new Date());
+    const counted = allOrders.filter(o => (o.status === "tomado" || o.status === "entregado") && o.created_at && dayFmt.format(new Date(o.created_at)) === today);
+    const total = counted.reduce((s, o) => s + (Number(o.total) || 0), 0);
+    const byAdvisor = {};
+    counted.forEach(o => { const n = o.advisor_name || "Sin asesora"; byAdvisor[n] = (byAdvisor[n] || 0) + (Number(o.total) || 0); });
+    el.statSalesToday.textContent = money(total);
+    el.statSalesTodayDetail.textContent = counted.length
+      ? `${counted.length} ${counted.length === 1 ? "pedido" : "pedidos"} · ` + Object.entries(byAdvisor).sort((x, y) => y[1] - x[1]).map(([n, v]) => `${n} ${money(v)}`).join(" · ")
+      : "Todavía no hay pedidos tomados o entregados hoy";
+    el.salesTodayCard.hidden = false;
+  }
+
   async function loadOrders() {
     const { data, error } = await supabaseClient.from("orders").select("*").order("created_at", { ascending: false });
     if (error) { showToast("No se pudieron cargar los pedidos: " + error.message, true); return; }
@@ -491,6 +510,7 @@
     el.ordersBadge.textContent = pending;
     el.ordersBadge.hidden = pending === 0;
     renderOrders();
+    paintSales();
   }
 
   function renderOrders() {
@@ -621,6 +641,7 @@
     el.statNewOrders.textContent = pending;
     el.ordersBadge.textContent = pending;
     el.ordersBadge.hidden = pending === 0;
+    paintSales();
     showToast("Estado actualizado");
   });
 
@@ -937,8 +958,8 @@
     el.settingsPagoMovilPhone.value = settings.pago_movil_phone || "";
     el.settingsPagoMovilCedula.value = settings.pago_movil_cedula || "";
     el.settingsPagoMovilBank.value = settings.pago_movil_bank || "";
-    el.settingsBinanceEmail.value = settings.binance_email || "";
-    el.settingsBinanceHolder.value = settings.binance_holder_name || "";
+    el.settingsBinanceId.value = settings.binance_id || "";
+    el.settingsHideSoldout.value = settings.hide_soldout === false ? "false" : "true";
     el.settingsZelleEmail.value = settings.zelle_email || "";
     el.settingsZelleHolder.value = settings.zelle_holder_name || "";
   }
@@ -958,8 +979,10 @@
       pago_movil_phone: el.settingsPagoMovilPhone.value.trim(),
       pago_movil_cedula: el.settingsPagoMovilCedula.value.trim(),
       pago_movil_bank: el.settingsPagoMovilBank.value.trim(),
-      binance_email: el.settingsBinanceEmail.value.trim(),
-      binance_holder_name: el.settingsBinanceHolder.value.trim(),
+      binance_id: el.settingsBinanceId.value.trim(),
+      binance_email: "",            // por seguridad se borran el correo y el nombre que hubiera (los Ajustes son públicos)
+      binance_holder_name: "",
+      hide_soldout: el.settingsHideSoldout.value === "true",
       zelle_email: el.settingsZelleEmail.value.trim(),
       zelle_holder_name: el.settingsZelleHolder.value.trim(),
     };
