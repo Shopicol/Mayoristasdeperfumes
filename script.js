@@ -4,7 +4,8 @@
   /* ---------------------------------------------------------------
      Estado global
      --------------------------------------------------------------- */
-  let PRODUCTS = [];
+  let PRODUCTS = [];        // lo que se VE en el catálogo
+  let ALL_PRODUCTS = [];    // todos los productos (incluye agotados)
   let siteSettings = null;
   let currentModalProduct = null;
   let modalQtyValue = 1;
@@ -757,8 +758,7 @@
         ${bs ? `<span class="payment-amount-hint">${money(totalUsd)} × tasa ${exchangeRate().toLocaleString("es-VE")}</span>` : ""}`;
     } else if (val === "Binance") {
       html = `<strong>Datos para Binance</strong>
-        <span>Correo/ID: <b>${s.binance_email || "—"}</b></span>
-        ${s.binance_holder_name ? `<span>Titular: <b>${s.binance_holder_name}</b></span>` : ""}
+        <span>ID de Binance: <b>${s.binance_id || "—"}</b></span>
         <span class="payment-amount-due">A pagar: <b>${money(totalUsd)}</b></span>`;
     } else if (val === "Zelle") {
       html = `<strong>Datos para Zelle</strong>
@@ -1067,7 +1067,7 @@
   function syncPaymentOptions() {
     const st = siteSettings || {};
     const has = v => !!String(v == null ? "" : v).trim();
-    const configured = { "Pago móvil": has(st.pago_movil_phone), "Binance": has(st.binance_email), "Zelle": has(st.zelle_email) };
+    const configured = { "Pago móvil": has(st.pago_movil_phone), "Binance": has(st.binance_id), "Zelle": has(st.zelle_email) };
     if (!Object.values(configured).some(Boolean)) return;
     Array.from(el.custPayment.options).forEach(opt => {
       if (opt.value in configured && !configured[opt.value]) opt.remove();
@@ -1110,12 +1110,23 @@
     try { const c = JSON.parse(localStorage.getItem(CATALOG_CACHE_KEY) || "null"); return c && Array.isArray(c.products) && c.products.length ? c : null; }
     catch (e) { return null; }
   }
-  function saveCatalogCache(products, banners) {
-    try { localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify({ t: Date.now(), products, banners })); } catch (e) {}
+  function saveCatalogCache(products, banners, hide) {
+    try { localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify({ t: Date.now(), products, banners, hide })); } catch (e) {}
+  }
+  // ¿Se ocultan los agotados? (interruptor de Ajustes en el admin; por defecto, sí)
+  const visibleCatalog = (all, hide) => (hide ? all.filter(isEffectivelyAvailable) : all);
+  const hideSoldOutNow = () => !(siteSettings && siteSettings.hide_soldout === false);
+  // Si un producto del carrito ya no se ve (agotado o borrado), se quita para que el contador y el total cuadren
+  function pruneCart() {
+    if (!PRODUCTS.length) return;
+    const cart = loadCart(); let changed = false;
+    Object.keys(cart).forEach(k => { if (!PRODUCTS.some(p => String(p.id) === String(parseCartKey(k).id))) { delete cart[k]; changed = true; } });
+    if (changed) saveCart(cart);
   }
   let settingsReady = Promise.resolve(null);
 
   function paintStore(bannerData) {
+    pruneCart();
     renderMarquee();
     renderCategoryNav();
     renderCategoryTiles();
@@ -1244,22 +1255,25 @@
     const cached = readCatalogCache();
     settingsReady = fetchSettings().then(s => { siteSettings = s; applySettings(s); syncPaymentOptions(); return s; });
 
-    let painted = false;
+    let paintedSig = null;
     if (cached) {                                       // 1) al instante, con la copia guardada
-      PRODUCTS = cached.products;
+      ALL_PRODUCTS = cached.products;
+      PRODUCTS = visibleCatalog(ALL_PRODUCTS, cached.hide !== false);
       applyCategoryFromURL();
       paintStore(cached.banners || []);
-      painted = true;
+      paintedSig = JSON.stringify([PRODUCTS, cached.banners || []]);
     }
     const [products, bannerData] = await Promise.all([fetchCatalog(), fetchBanners()]);   // 2) lo fresco
     await settingsReady;
+    const hide = hideSoldOutNow();
     if (products.length) {
-      const changed = !cached || JSON.stringify([products, bannerData]) !== JSON.stringify([cached.products, cached.banners || []]);
-      PRODUCTS = products;
-      saveCatalogCache(products, bannerData);
-      if (!painted) { applyCategoryFromURL(); paintStore(bannerData); }
-      else if (changed) paintStore(bannerData);
-    } else if (!painted) {                              // sin red y sin copia: como antes
+      ALL_PRODUCTS = products;
+      PRODUCTS = visibleCatalog(ALL_PRODUCTS, hide);
+      saveCatalogCache(ALL_PRODUCTS, bannerData, hide);
+      const sig = JSON.stringify([PRODUCTS, bannerData]);
+      if (paintedSig === null) { applyCategoryFromURL(); paintStore(bannerData); }
+      else if (sig !== paintedSig) paintStore(bannerData);
+    } else if (paintedSig === null) {                   // sin red y sin copia: como antes
       PRODUCTS = [];
       applyCategoryFromURL();
       paintStore(bannerData);

@@ -17,8 +17,8 @@ const DEFAULT_SETTINGS = {
   pago_movil_phone: "",
   pago_movil_cedula: "",
   pago_movil_bank: "",
-  binance_email: "",
-  binance_holder_name: "",
+  binance_id: "",            // solo el ID de Binance (por seguridad ya no se guardan nombre ni correo)
+  hide_soldout: true,        // true = los productos agotados no se ven en el catálogo
   zelle_email: "",
   zelle_holder_name: "",
 };
