@@ -94,6 +94,16 @@
     checkoutClose: document.getElementById("checkoutClose"),
     advisorStep: document.getElementById("advisorStep"),
     advisorPillWrap: document.getElementById("advisorPillWrap"),
+    custCedulaNum: document.getElementById("custCedulaNum"),
+    clientCedulaNum: document.getElementById("clientCedulaNum"),
+    clientBtn: document.getElementById("clientBtn"),
+    clientOverlay: document.getElementById("clientOverlay"),
+    clientClose: document.getElementById("clientClose"),
+    clientForm: document.getElementById("clientForm"),
+    clientPhone: document.getElementById("clientPhone"),
+    clientSubmit: document.getElementById("clientSubmit"),
+    clientMsg: document.getElementById("clientMsg"),
+    clientResults: document.getElementById("clientResults"),
     advisorConfirm: document.getElementById("advisorConfirm"),
     advisorConfirmName: document.getElementById("advisorConfirmName"),
     advisorConfirmYes: document.getElementById("advisorConfirmYes"),
@@ -932,6 +942,10 @@
     e.preventDefault();
     el.checkoutError.hidden = true;
     await settingsReady;                              // la tasa del dólar siempre fresca antes de calcular el pedido
+    {
+      const v = validarCedula(el.custCedulaNum.value);
+      if (!v.ok) { el.checkoutError.textContent = v.msg; el.checkoutError.hidden = false; el.custCedulaNum.focus(); return; }
+    }
 
     if (!chosenAdvisor) {
       el.checkoutError.textContent = "Por favor selecciona o pide que te asignen una asesora primero.";
@@ -992,6 +1006,7 @@
 
     const order = {
       customer_name: el.custName.value.trim(),
+      customer_cedula: soloNumeros(el.custCedulaNum.value),
       phone: el.custPhone.value.trim(),
       city: el.custCity.value.trim(),
       email: el.custEmail.value.trim(),
@@ -1027,6 +1042,7 @@
       if (order.payment_method === "Pago móvil") { const bsLine = formatBs(total); if (bsLine) lines.push(`Monto a pagar: ${bsLine} (tasa ${exchangeRate().toLocaleString("es-VE")})`); }
       lines.push("");
       lines.push(`Nombre: ${order.customer_name}`);
+      if (order.customer_cedula) lines.push(`Cédula: ${order.customer_cedula}`);
       lines.push(`Teléfono: ${order.phone}`);
       lines.push(`Ciudad: ${order.city}`);
       lines.push(`Método de pago: ${order.payment_method}`);
@@ -1248,6 +1264,94 @@
     if (!spQueue.length) return;
     spNextT = setTimeout(showSocialProof, SP_FIRST_DELAY);
   }
+
+  /* ---------------------------------------------------------------
+     CÉDULA y "SOY CLIENTE": el cliente ve SUS pedidos con cédula + teléfono.
+     La consulta la hace la base de datos (my_orders): devuelve solo productos, totales y estado.
+     --------------------------------------------------------------- */
+  /* La cédula o el RIF se escriben SOLO con números (sin letras, puntos ni guiones).
+     Cédula: de 6 a 8 números. RIF: 9 números (8 más el dígito verificador del final). */
+  const soloNumeros = v => String(v || "").replace(/\D/g, "");
+  function validarCedula(valor) {
+    const dig = soloNumeros(valor);
+    if (!dig) return { ok: false, msg: "Escribe tu cédula o RIF (solo números)." };
+    if (dig.length < 6) return { ok: false, msg: "Tu cédula o RIF debe tener al menos 6 números. Escríbelo completo, solo números." };
+    if (dig.length > 9) return { ok: false, msg: "Tienes demasiados números: la cédula tiene de 6 a 8 y el RIF 9. Revísalo." };
+    return { ok: true, dig };
+  }
+  function cedulaInput(numEl) {                       // si pegan "V-12.345.678", se quitan la letra, los puntos y los guiones
+    numEl.addEventListener("input", () => { numEl.value = soloNumeros(numEl.value).slice(0, 15); });
+  }
+  cedulaInput(el.custCedulaNum);
+  cedulaInput(el.clientCedulaNum);
+  const ESTADO_PEDIDO = { nuevo: "Nuevo", tomado: "Tomado", entregado: "Entregado", cancelado: "Cancelado" };
+  const ESTADO_PAGO = { pendiente: "Pago pendiente", por_verificar: "Pago por verificar", pagado: "Pagado" };
+  let clientOrders = [];
+
+  function openClient() {
+    el.clientMsg.hidden = true; el.clientResults.hidden = true; el.clientResults.innerHTML = ""; el.clientForm.hidden = false;
+    el.clientOverlay.hidden = false; document.body.style.overflow = "hidden"; el.clientCedulaNum.focus();
+  }
+  function closeClient() { el.clientOverlay.hidden = true; if (el.checkoutOverlay.hidden) document.body.style.overflow = ""; }
+  el.clientBtn.addEventListener("click", openClient);
+  el.clientClose.addEventListener("click", closeClient);
+  el.clientOverlay.addEventListener("click", e => { if (e.target === el.clientOverlay) closeClient(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !el.clientOverlay.hidden) closeClient(); });
+
+  function renderClientOrders(rows, aviso) {
+    const nombre = String((rows[0] && rows[0].customer_name) || "").trim().split(/\s+/)[0] || "";
+    const vigentes = rows.filter(r => r.status !== "cancelado");
+    const total = vigentes.reduce((s, r) => s + (Number(r.total) || 0), 0);
+    const fecha = d => new Date(d).toLocaleDateString("es-VE", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Caracas" });
+    el.clientResults.innerHTML = `
+      <div class="client-head"><strong>Hola${nombre ? ", " + esc(nombre) : ""} 👋</strong><span>${vigentes.length} ${vigentes.length === 1 ? "pedido" : "pedidos"} · ${money(total)} en total</span></div>
+      ${aviso ? `<div class="client-aviso">${aviso}</div>` : ""}
+      ${rows.map((r, i) => `
+        <div class="client-order">
+          <div class="client-order-top"><b>Pedido #${esc(r.order_id)}</b><span>${fecha(r.created_at)}</span></div>
+          <div class="client-chips"><span class="chip st-${esc(r.status)}">${esc(ESTADO_PEDIDO[r.status] || r.status)}</span><span class="chip pay-${esc(r.payment_status)}">${esc(ESTADO_PAGO[r.payment_status] || r.payment_status)}</span></div>
+          <ul class="client-items">${(Array.isArray(r.items) ? r.items : []).map(it => `<li>${esc(it.qty)} × ${esc(it.name)}</li>`).join("")}</ul>
+          <div class="client-order-bottom"><b>${money(r.total)}</b>${r.advisor_name ? `<span>Asesora: ${esc(r.advisor_name)}</span>` : ""}<button type="button" class="client-reorder" data-reorder="${i}">Volver a pedir</button></div>
+        </div>`).join("")}`;
+    el.clientResults.hidden = false;
+  }
+  el.clientForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    el.clientMsg.hidden = true;
+    {
+      const v = validarCedula(el.clientCedulaNum.value);
+      if (!v.ok) { el.clientMsg.textContent = v.msg; el.clientMsg.hidden = false; return; }
+    }
+    el.clientSubmit.disabled = true; el.clientSubmit.textContent = "Buscando…";
+    try {
+      const { data, error } = await supabaseClient.rpc("my_orders", { p_cedula: soloNumeros(el.clientCedulaNum.value), p_phone: el.clientPhone.value.trim() });
+      if (error) throw error;
+      if (!Array.isArray(data) || !data.length) {
+        el.clientMsg.textContent = "No encontramos pedidos con esos datos. Revisa que la cédula y el teléfono sean los mismos que usaste al hacer tu pedido.";
+        el.clientMsg.hidden = false; return;
+      }
+      clientOrders = data; el.clientForm.hidden = true; renderClientOrders(data);
+    } catch (err) {
+      el.clientMsg.textContent = "No pudimos consultar en este momento. Intenta de nuevo en un rato.";
+      el.clientMsg.hidden = false;
+    } finally { el.clientSubmit.disabled = false; el.clientSubmit.textContent = "Ver mis pedidos"; }
+  });
+  el.clientResults.addEventListener("click", e => {
+    if (e.target.closest("[data-gocart]")) { closeClient(); openCart(); return; }
+    const btn = e.target.closest("[data-reorder]");
+    if (!btn) return;
+    const order = clientOrders[Number(btn.dataset.reorder)]; if (!order) return;
+    let ok = 0, falta = 0;
+    (Array.isArray(order.items) ? order.items : []).forEach(it => {
+      const p = PRODUCTS.find(x => String(x.id) === String(it.id));
+      if (p && isEffectivelyAvailable(p)) { addToCart(p.id, Number(it.qty) || 1); ok++; } else falta++;
+    });
+    const aviso = ok
+      ? `Agregamos <b>${ok}</b> ${ok === 1 ? "producto" : "productos"} a tu carrito.${falta ? ` ${falta} ya no ${falta === 1 ? "está disponible" : "están disponibles"}.` : ""} <button type="button" class="client-gocart" data-gocart>Ver carrito</button>`
+      : "Esos productos ya no están disponibles en el catálogo.";
+    renderClientOrders(clientOrders, aviso);
+    el.clientResults.scrollIntoView({ block: "start" });
+  });
 
   async function init() {
     captureAdvisorFromURL();

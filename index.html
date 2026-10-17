@@ -60,6 +60,7 @@
     </div>
 
     <div class="header-actions">
+      <button type="button" class="client-btn" id="clientBtn">Soy cliente</button>
       <button class="icon-btn" id="cartBtn" aria-label="Ver carrito">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path d="M3 4H5L5.4 6M5.4 6H20L18 13H7M5.4 6L6.8 14H18M18 14L19 4M9 19a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -211,6 +212,23 @@
   </div>
 </div>
 
+<!-- ============ SOY CLIENTE: ver mis pedidos ============ -->
+<div class="modal-overlay" id="clientOverlay" hidden>
+  <div class="modal-card client-card" role="dialog" aria-modal="true" aria-labelledby="clientTitle">
+    <button class="modal-close" id="clientClose" aria-label="Cerrar">✕</button>
+    <h2 id="clientTitle">Mis pedidos</h2>
+    <p class="checkout-sub">Escribe tu cédula y tu teléfono (los mismos de tu pedido) para ver tu historial.</p>
+    <form id="clientForm" class="client-form">
+      <label><span>Cédula o RIF <em class="opt">(solo números)</em></span><input type="text" id="clientCedulaNum" required inputmode="numeric" maxlength="15" autocomplete="off" placeholder="Ej: 12345678"></label>
+      <label><span>Teléfono</span><input type="tel" id="clientPhone" required placeholder="Ej: 0412 1234567"></label>
+      <button class="btn-primary btn-block" type="submit" id="clientSubmit">Ver mis pedidos</button>
+      <p class="client-msg" id="clientMsg" hidden></p>
+    </form>
+    <div class="client-results" id="clientResults" hidden></div>
+    <p class="client-privacy">Solo mostramos tus productos, totales y estado. Nunca mostramos direcciones ni teléfonos.</p>
+  </div>
+</div>
+
 <div class="modal-overlay" id="checkoutOverlay" hidden>
   <div class="modal-card checkout-card">
     <button class="modal-close" id="checkoutClose" aria-label="Cerrar">✕</button>
@@ -242,6 +260,11 @@
         <label>
           <span>Nombre completo *</span>
           <input type="text" id="custName" required placeholder="Ej: María Pérez">
+        </label>
+        <label>
+          <span>Cédula o RIF * <em class="opt">(solo números)</em></span>
+          <input type="text" id="custCedulaNum" required inputmode="numeric" maxlength="15" autocomplete="off" placeholder="Ej: 12345678">
+          <small class="field-hint">Sin letras, puntos ni guiones. Solo la ve tu asesora; sirve para identificarte y poder ver tus pedidos.</small>
         </label>
         <div class="form-row two">
           <label>
