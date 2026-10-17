@@ -47,6 +47,7 @@
     <button class="admin-tab" data-tab="products">Productos</button>
     <button class="admin-tab" data-tab="bulk">Carga masiva</button>
     <button class="admin-tab" data-tab="orders">Pedidos <span class="tab-badge" id="ordersBadge" hidden>0</span></button>
+    <button class="admin-tab" data-tab="clients">Clientes</button>
     <button class="admin-tab" data-tab="banners">Banners</button>
     <button class="admin-tab" data-tab="advisors">Asesoras</button>
     <button class="admin-tab" data-tab="settings">Ajustes</button>
@@ -108,6 +109,22 @@
       </div>
       <div class="orders-list" id="ordersList"></div>
       <p class="admin-empty" id="ordersEmpty" hidden>Todavía no hay pedidos.</p>
+    </div>
+
+    <!-- ============ TAB: CLIENTES ============ -->
+    <div class="admin-tab-panel" id="tabClients" hidden>
+      <div class="clients-toolbar">
+        <input type="search" id="clientsSearch" placeholder="Buscar por nombre, cédula o teléfono…">
+        <button type="button" class="btn-primary" id="clientsExportBtn">⬇ Descargar clientes en Excel</button>
+      </div>
+      <p class="banners-hint" id="clientsSummary"></p>
+      <div class="table-wrap">
+        <table class="admin-table clients-table">
+          <thead><tr><th>Cliente</th><th>Cédula</th><th>Teléfono</th><th>Pedidos</th><th>Total</th><th>Último pedido</th><th>Asesora(s)</th></tr></thead>
+          <tbody id="clientsBody"></tbody>
+        </table>
+      </div>
+      <p class="admin-empty" id="clientsEmpty" hidden>Todavía no hay clientes.</p>
     </div>
 
     <!-- ============ TAB: CARGA MASIVA ============ -->

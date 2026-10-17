@@ -90,6 +90,12 @@
     bannerFieldSubtitle: document.getElementById("bannerFieldSubtitle"),
     bannerFieldImageFile: document.getElementById("bannerFieldImageFile"),
     bannerFieldImagePreview: document.getElementById("bannerFieldImagePreview"),
+    tabClients: document.getElementById("tabClients"),
+    clientsSearch: document.getElementById("clientsSearch"),
+    clientsExportBtn: document.getElementById("clientsExportBtn"),
+    clientsSummary: document.getElementById("clientsSummary"),
+    clientsBody: document.getElementById("clientsBody"),
+    clientsEmpty: document.getElementById("clientsEmpty"),
     myLinkBox: document.getElementById("myLinkBox"),
     myLinkUrl: document.getElementById("myLinkUrl"),
     copyMyLinkBtn: document.getElementById("copyMyLinkBtn"),
@@ -236,7 +242,7 @@
 
     if (currentRole === "advisor") {
       // Asesora: solo Productos, Carga masiva y SUS pedidos (la base de datos además lo impone).
-      const allowed = ["products", "bulk", "orders"];
+      const allowed = ["products", "bulk", "orders", "clients"];
       document.querySelectorAll(".admin-tab").forEach(b => { b.hidden = !allowed.includes(b.dataset.tab); });
       let name = "";
       if (staff.advisor_id) {
@@ -260,7 +266,7 @@
   /* ---------------------------------------------------------------
      Tabs
      --------------------------------------------------------------- */
-  const tabPanels = { summary: el.tabSummary, products: el.tabProducts, bulk: el.tabBulk, orders: el.tabOrders, banners: el.tabBanners, advisors: el.tabAdvisors, settings: el.tabSettings };
+  const tabPanels = { summary: el.tabSummary, products: el.tabProducts, bulk: el.tabBulk, orders: el.tabOrders, clients: el.tabClients, banners: el.tabBanners, advisors: el.tabAdvisors, settings: el.tabSettings };
   document.querySelectorAll(".admin-tab").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".admin-tab").forEach(b => b.classList.remove("active"));
@@ -485,6 +491,69 @@
   const STATUS_LABELS = { nuevo: "🆕 Nuevo", tomado: "📦 Tomado", entregado: "✅ Entregado", cancelado: "❌ Cancelado" };
   const PAY_LABELS = { pendiente: "⏳ Pago pendiente", por_verificar: "🔎 Pago por verificar", pagado: "✅ Pagado" };
 
+  /* ---------------------------------------------------------------
+     CLIENTES: se arman agrupando los pedidos (por cédula; si no hay, por teléfono).
+     La administradora ve todos; cada asesora ve solo los de sus pedidos (la base de datos lo impone).
+     --------------------------------------------------------------- */
+  const digitsOnly = s => String(s || "").replace(/\D/g, "");
+  const dayFmtVE = d => new Date(d).toLocaleDateString("es-VE", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Caracas" });
+  const ESTADOS = { nuevo: "Nuevo", tomado: "Tomado", entregado: "Entregado", cancelado: "Cancelado" };
+  let clientsList = [], openClientKey = null;
+
+  function buildClients() {
+    const sorted = [...allOrders].sort((x, y) => new Date(y.created_at) - new Date(x.created_at));   // más reciente primero
+    const phoneKey = o => digitsOnly(o.phone).slice(-10);
+    const phoneToCed = {};
+    sorted.forEach(o => { const c = digitsOnly(o.customer_cedula); if (c.length >= 6 && phoneKey(o) && !phoneToCed[phoneKey(o)]) phoneToCed[phoneKey(o)] = c; });
+    const map = new Map();
+    sorted.forEach(o => {
+      const c = digitsOnly(o.customer_cedula);
+      const key = c.length >= 6 ? "ced:" + c : (phoneToCed[phoneKey(o)] ? "ced:" + phoneToCed[phoneKey(o)] : "tel:" + (phoneKey(o) || "sin-dato-" + o.id));
+      if (!map.has(key)) map.set(key, { key, name: o.customer_name || "—", cedula: o.customer_cedula || "", phone: o.phone || "", orders: [] });
+      const cl = map.get(key); cl.orders.push(o);
+      if (!cl.cedula && o.customer_cedula) cl.cedula = o.customer_cedula;
+    });
+    clientsList = [...map.values()].map(cl => {
+      const vig = cl.orders.filter(o => o.status !== "cancelado");
+      cl.count = vig.length; cl.total = vig.reduce((s, o) => s + (Number(o.total) || 0), 0);
+      cl.last = cl.orders[0].created_at; cl.first = cl.orders[cl.orders.length - 1].created_at;
+      cl.advisors = [...new Set(cl.orders.map(o => o.advisor_name).filter(Boolean))];
+      return cl;
+    });
+  }
+  function renderClients() {
+    buildClients();
+    const q = el.clientsSearch.value.trim().toLowerCase(), qd = digitsOnly(q);
+    const rows = clientsList.filter(c => !q || c.name.toLowerCase().includes(q) || (qd.length >= 3 && (digitsOnly(c.cedula).includes(qd) || digitsOnly(c.phone).includes(qd))) || c.cedula.toLowerCase().includes(q));
+    el.clientsEmpty.hidden = clientsList.length > 0;
+    el.clientsSummary.textContent = clientsList.length ? `${rows.length} de ${clientsList.length} clientes${currentRole === "advisor" ? " (los de tus pedidos)" : ""}. Toca un cliente para ver su historial. Los totales no cuentan los pedidos cancelados.` : "";
+    const esc2 = s => String(s == null ? "" : s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    el.clientsBody.innerHTML = rows.map(c => `
+      <tr class="client-row" data-client="${esc2(c.key)}">
+        <td><b>${esc2(c.name)}</b></td><td>${esc2(c.cedula) || "—"}</td><td>${esc2(c.phone)}</td>
+        <td>${c.count}</td><td>${money(c.total)}</td><td>${dayFmtVE(c.last)}</td><td>${esc2(c.advisors.join(", ")) || "—"}</td>
+      </tr>
+      ${openClientKey === c.key ? `<tr class="client-detail"><td colspan="7">${c.orders.map(o => `
+        <div class="client-detail-line"><b>#${o.id}</b> · ${dayFmtVE(o.created_at)} · ${esc2(ESTADOS[o.status] || o.status)} · ${money(o.total)}${o.advisor_name ? " · " + esc2(o.advisor_name) : ""}
+          <span>${(Array.isArray(o.items) ? o.items : []).map(it => esc2(it.qty + " × " + it.name)).join(", ")}</span></div>`).join("")}</td></tr>` : ""}`).join("");
+  }
+  el.clientsSearch.addEventListener("input", renderClients);
+  el.clientsBody.addEventListener("click", e => {
+    const row = e.target.closest("[data-client]"); if (!row) return;
+    openClientKey = openClientKey === row.dataset.client ? null : row.dataset.client; renderClients();
+  });
+  el.clientsExportBtn.addEventListener("click", () => {
+    if (!window.XLSX) { showToast("No se pudo cargar el lector de Excel. Recarga la página.", true); return; }
+    buildClients();
+    const aoa = [["Cliente", "Cédula", "Teléfono", "Pedidos (sin cancelados)", "Total US$ (sin cancelados)", "Primer pedido", "Último pedido", "Asesora(s)"],
+      ...clientsList.map(c => [c.name, c.cedula, c.phone, c.count, Math.round(c.total * 100) / 100, dayFmtVE(c.first), dayFmtVE(c.last), c.advisors.join(", ")])];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    for (let r = 1; r < aoa.length; r++) for (const c of [1, 2]) { const cell = ws[XLSX.utils.encode_cell({ r, c })]; if (cell && cell.v !== "") { cell.t = "s"; cell.v = String(cell.v); cell.z = "@"; } }
+    ws["!cols"] = [34, 16, 16, 12, 14, 14, 14, 24].map(w => ({ wch: w }));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Clientes");
+    XLSX.writeFile(wb, "clientes_mayoristas.xlsx"); showToast("Excel de clientes descargado ✓");
+  });
+
   /* Ventas de hoy: suma de los pedidos TOMADO y ENTREGADO creados hoy (hora de Venezuela). Solo la administradora la ve. */
   function paintSales() {
     if (currentRole !== "admin") { el.salesTodayCard.hidden = true; return; }
@@ -511,6 +580,7 @@
     el.ordersBadge.hidden = pending === 0;
     renderOrders();
     paintSales();
+    renderClients();
   }
 
   function renderOrders() {
@@ -523,7 +593,7 @@
       return `
         <div class="order-card">
           <div class="order-top">
-            <span class="order-name">${o.customer_name || "—"} — ${o.phone || ""}</span>
+            <span class="order-name">${o.customer_name || "—"} — ${o.phone || ""}${o.customer_cedula ? ` · Cédula ${o.customer_cedula}` : ""}</span>
             <select class="order-status-select" data-order-status="${o.id}">
               ${Object.entries(STATUS_LABELS).map(([val, label]) => `<option value="${val}" ${o.status === val ? "selected" : ""}>${label}</option>`).join("")}
             </select>

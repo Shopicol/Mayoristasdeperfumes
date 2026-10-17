@@ -220,3 +220,12 @@ input, select, textarea{ font-family:inherit; }
 .stat-card.stat-money[hidden]{ display:none; }
 .stat-card.stat-money strong{ font-size:34px; }
 .stat-card.stat-money small{ display:block; margin-top:6px; font-size:12.5px; color:var(--ink-soft); line-height:1.5; }
+
+/* ============================= CLIENTES ============================= */
+.clients-toolbar{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+.clients-toolbar input{ flex:1 1 260px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; }
+.client-row{ cursor:pointer; } .client-row:hover{ background:#FBF7EA; }
+.client-detail td{ background:#FAF8F1; padding:10px 14px; }
+.client-detail-line{ font-size:13px; padding:5px 0; border-bottom:1px dashed var(--line); line-height:1.5; }
+.client-detail-line:last-child{ border-bottom:none; }
+.client-detail-line span{ display:block; color:var(--ink-soft); font-size:12.5px; }
