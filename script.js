@@ -137,6 +137,9 @@
     submitOrderBtn: document.getElementById("submitOrderBtn"),
     checkoutError: document.getElementById("checkoutError"),
     checkoutSuccess: document.getElementById("checkoutSuccess"),
+    successLead: document.getElementById("successLead"),
+    successHours: document.getElementById("successHours"),
+    successSchedule: document.getElementById("successSchedule"),
     closeSuccessBtn: document.getElementById("closeSuccessBtn"),
   };
 
@@ -776,6 +779,7 @@
         ${s.zelle_holder_name ? `<span>Titular: <b>${s.zelle_holder_name}</b></span>` : ""}
         <span class="payment-amount-due">A pagar: <b>${money(totalUsd)}</b></span>`;
     }
+    if (html && ["Pago móvil", "Binance", "Zelle"].includes(val)) html += PAGO_PROTEGIDO_HTML;
     if (html) { el.paymentDetailsBox.innerHTML = html; el.paymentDetailsBox.hidden = false; }
     else el.paymentDetailsBox.hidden = true;
 
@@ -1064,6 +1068,7 @@
       saveCart({});
       updateCartBadge();
       el.checkoutForm.hidden = true;
+      pintarHorarioExito(order);
       el.checkoutSuccess.hidden = false;
     } catch (err) {
       el.checkoutError.textContent = "No se pudo enviar tu pedido. Intenta de nuevo.";
@@ -1352,6 +1357,66 @@
     renderClientOrders(clientOrders, aviso);
     el.clientResults.scrollIntoView({ block: "start" });
   });
+
+  /* ---------------------------------------------------------------
+     PAGO PROTEGIDO y HORARIO DE ATENCIÓN
+     El horario se edita en Admin → Ajustes. Todo se calcula con la hora de Venezuela (UTC-4).
+     --------------------------------------------------------------- */
+  const PAGO_PROTEGIDO_HTML = `<span class="pay-safe">🔒 <b>Tu pago está protegido.</b> Transfiere solo a los datos que ves en esta página. Tu pago queda registrado con tu pedido y lo verifica tu asesora. <b>Nunca te pediremos claves, PIN ni códigos.</b></span>`;
+  const DIAS_SEMANA = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const DIA_LARGO = { mon: "lunes", tue: "martes", wed: "miércoles", thu: "jueves", fri: "viernes", sat: "sábado", sun: "domingo" };
+  const DIA_CORTO = { mon: "Lun", tue: "Mar", wed: "Mié", thu: "Jue", fri: "Vie", sat: "Sáb", sun: "Dom" };
+  const HORARIO_POR_DEFECTO = { mon: { mode: "hours", open: "08:00", close: "17:50" }, tue: { mode: "hours", open: "08:00", close: "17:50" }, wed: { mode: "hours", open: "08:00", close: "17:50" }, thu: { mode: "hours", open: "08:00", close: "17:50" }, fri: { mode: "hours", open: "08:00", close: "17:50" }, sat: { mode: "hours", open: "08:00", close: "14:00" }, sun: { mode: "virtual" } };
+  const aMinutos = hhmm => { const [h, m] = String(hhmm || "0:0").split(":").map(Number); return h * 60 + (m || 0); };
+  function hora12(hhmm) {
+    const [h, m] = String(hhmm).split(":").map(Number);
+    return `${h % 12 === 0 ? 12 : h % 12}:${String(m || 0).padStart(2, "0")} ${h >= 12 ? "p. m." : "a. m."}`;
+  }
+  function ahoraVenezuela(fecha = new Date()) {
+    const partes = new Intl.DateTimeFormat("en-US", { timeZone: "America/Caracas", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(fecha);
+    const v = t => partes.find(p => p.type === t).value;
+    return { dia: { Sun: "sun", Mon: "mon", Tue: "tue", Wed: "wed", Thu: "thu", Fri: "fri", Sat: "sat" }[v("weekday")], min: (Number(v("hour")) % 24) * 60 + Number(v("minute")) };
+  }
+  function horarioConfigurado() {
+    const H = siteSettings && siteSettings.business_hours;
+    return H && typeof H === "object" ? H : HORARIO_POR_DEFECTO;
+  }
+  // Devuelve { estado: "abierto" | "cerrado" | "virtual", proxima: "mañana a las 8:00 a. m." }
+  function estadoHorario(fecha = new Date()) {
+    const H = horarioConfigurado(), { dia, min } = ahoraVenezuela(fecha), idx = DIAS_SEMANA.indexOf(dia), hoy = H[dia] || { mode: "closed" };
+    const proxima = () => {
+      if (hoy.mode === "hours" && min < aMinutos(hoy.open)) return `hoy a las ${hora12(hoy.open)}`;
+      for (let i = 1; i <= 7; i++) {
+        const k = DIAS_SEMANA[(idx + i) % 7], c = H[k];
+        if (c && c.mode === "hours") return `${i === 1 ? "mañana" : "el " + DIA_LARGO[k]} a las ${hora12(c.open)}`;
+      }
+      return "";
+    };
+    if (hoy.mode === "virtual") return { estado: "virtual", proxima: proxima() };
+    if (hoy.mode === "hours" && min >= aMinutos(hoy.open) && min < aMinutos(hoy.close)) return { estado: "abierto" };
+    return { estado: "cerrado", proxima: proxima() };
+  }
+  function resumenHorario() {   // "Lun a Vie 8:00 a. m. – 5:50 p. m. · Sáb 8:00 a. m. – 2:00 p. m. · Dom atención virtual"
+    const H = horarioConfigurado(), orden = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+    const txt = k => { const c = H[k] || { mode: "closed" }; return c.mode === "hours" ? `${hora12(c.open)} – ${hora12(c.close)}` : c.mode === "virtual" ? "atención virtual en horarios limitados" : "cerrado"; };
+    const grupos = [];
+    orden.forEach(k => { const t = txt(k), u = grupos[grupos.length - 1]; if (u && u.t === t) u.fin = k; else grupos.push({ ini: k, fin: k, t }); });
+    return grupos.map(g => `${g.ini === g.fin ? DIA_CORTO[g.ini] : DIA_CORTO[g.ini] + " a " + DIA_CORTO[g.fin]}: ${g.t}`).join(" · ");
+  }
+  function pintarHorarioExito(pedido) {
+    el.successHours.hidden = true; el.successSchedule.hidden = true;
+    el.successLead.textContent = "Te vamos a escribir por WhatsApp para confirmar tu pedido.";
+    if (siteSettings && siteSettings.hours_enabled === false) return;
+    const e = estadoHorario(), pago = pedido && pedido.payment_status === "por_verificar";
+    if (e.estado !== "abierto") el.successLead.textContent = "Tu pedido ya quedó registrado.";      // fuera de horario no se promete que escriban "en breve"
+    const cuando = e.proxima ? e.proxima.replace(/\.$/, "") : "";          // "8:00 a. m." ya termina en punto: no se duplica
+    let msg;
+    if (e.estado === "abierto") msg = `✅ Estamos en horario de atención: tu asesora te escribe por WhatsApp en breve.${pago ? " Tu pago pasa a verificación." : ""}`;
+    else if (e.estado === "virtual") msg = `🕗 Hoy atendemos de forma virtual en horarios limitados. Tu pedido${pago ? " y tu pago quedaron registrados" : " quedó registrado"} y te respondemos en cuanto haya una asesora disponible${cuando ? `; si no, te atendemos ${cuando}` : ""}${cuando.endsWith("m") ? ". " : "."}`.trim();
+    else msg = `🕗 Ahora estamos fuera de horario. Tu pedido${pago ? " y tu pago quedaron registrados" : " quedó registrado"} y te atendemos ${cuando}${cuando.endsWith("m") ? ". " : ". "}${pago ? "Los pedidos pagados salen primero." : "Recuerda que los pedidos que van pagos salen primero."}`;
+    el.successHours.textContent = msg; el.successHours.hidden = false;
+    el.successSchedule.textContent = "Horario de atención (hora de Venezuela): " + resumenHorario(); el.successSchedule.hidden = false;
+  }
 
   async function init() {
     captureAdvisorFromURL();

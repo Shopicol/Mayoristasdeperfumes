@@ -561,3 +561,11 @@ input, select, textarea{ font-family:inherit; }
 .cedula-row{ display:flex; gap:8px; }
 .cedula-row select{ width:76px; flex-shrink:0; }
 .cedula-row input{ flex:1; min-width:0; }
+
+/* pago protegido + horario */
+.pay-safe{ display:block; margin-top:10px; padding:10px 12px; background:#EAF5EA; border:1px solid #B9DDB9; border-radius:8px; color:#2B5E2E; font-size:12.5px; line-height:1.5; }
+.success-hours{ background:#FFF6DD; border:1px solid var(--gold); border-radius:8px; padding:11px 13px; font-size:14px; line-height:1.5; margin:12px 0 8px; text-align:left; }
+.success-schedule{ font-size:12px; color:var(--text-soft); line-height:1.5; margin:0 0 14px; text-align:left; }
+.success-hours[hidden], .success-schedule[hidden]{ display:none; }
+
+.pay-safe b{ color:#1F4D22 !important; }

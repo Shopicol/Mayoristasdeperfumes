@@ -18,7 +18,9 @@ const DEFAULT_SETTINGS = {
   pago_movil_cedula: "",
   pago_movil_bank: "",
   binance_id: "",            // solo el ID de Binance (por seguridad ya no se guardan nombre ni correo)
-  hide_soldout: true,        // true = los productos agotados no se ven en el catálogo
+  hide_soldout: true,
+  hours_enabled: true,       // mostrar al cliente si estamos dentro o fuera de horario
+  business_hours: { mon: { mode: "hours", open: "08:00", close: "17:50" }, tue: { mode: "hours", open: "08:00", close: "17:50" }, wed: { mode: "hours", open: "08:00", close: "17:50" }, thu: { mode: "hours", open: "08:00", close: "17:50" }, fri: { mode: "hours", open: "08:00", close: "17:50" }, sat: { mode: "hours", open: "08:00", close: "14:00" }, sun: { mode: "virtual" } },        // true = los productos agotados no se ven en el catálogo
   zelle_email: "",
   zelle_holder_name: "",
 };
