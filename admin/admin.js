@@ -125,6 +125,8 @@
     settingsPagoMovilBank: document.getElementById("settingsPagoMovilBank"),
     settingsBinanceId: document.getElementById("settingsBinanceId"),
     settingsHideSoldout: document.getElementById("settingsHideSoldout"),
+    settingsHoursEnabled: document.getElementById("settingsHoursEnabled"),
+    hoursRows: document.getElementById("hoursRows"),
     salesTodayCard: document.getElementById("salesTodayCard"),
     statSalesToday: document.getElementById("statSalesToday"),
     statSalesTodayDetail: document.getElementById("statSalesTodayDetail"),
@@ -1030,13 +1032,53 @@
     el.settingsPagoMovilBank.value = settings.pago_movil_bank || "";
     el.settingsBinanceId.value = settings.binance_id || "";
     el.settingsHideSoldout.value = settings.hide_soldout === false ? "false" : "true";
+    el.settingsHoursEnabled.checked = settings.hours_enabled !== false;
+    renderHoursRows(settings.business_hours && typeof settings.business_hours === "object" ? settings.business_hours : HORARIO_INICIAL);
     el.settingsZelleEmail.value = settings.zelle_email || "";
     el.settingsZelleHolder.value = settings.zelle_holder_name || "";
+  }
+
+  /* ---------- Horario de atención ---------- */
+  const HORARIO_DIAS = [["mon", "Lunes"], ["tue", "Martes"], ["wed", "Miércoles"], ["thu", "Jueves"], ["fri", "Viernes"], ["sat", "Sábado"], ["sun", "Domingo"]];
+  const HORARIO_INICIAL = { mon: { mode: "hours", open: "08:00", close: "17:50" }, tue: { mode: "hours", open: "08:00", close: "17:50" }, wed: { mode: "hours", open: "08:00", close: "17:50" }, thu: { mode: "hours", open: "08:00", close: "17:50" }, fri: { mode: "hours", open: "08:00", close: "17:50" }, sat: { mode: "hours", open: "08:00", close: "14:00" }, sun: { mode: "virtual" } };
+  function renderHoursRows(H) {
+    el.hoursRows.innerHTML = HORARIO_DIAS.map(([k, nombre]) => {
+      const c = H[k] || { mode: "closed" };
+      return `<tr data-day="${k}">
+        <td class="hours-day">${nombre}</td>
+        <td><select class="hours-mode" aria-label="Tipo de atención del ${nombre}">
+          <option value="hours"${c.mode === "hours" ? " selected" : ""}>Con horario</option>
+          <option value="virtual"${c.mode === "virtual" ? " selected" : ""}>Virtual limitado</option>
+          <option value="closed"${c.mode === "closed" ? " selected" : ""}>Cerrado</option></select></td>
+        <td class="hours-times"><input type="time" class="hours-open" value="${c.open || "08:00"}"> <span>a</span> <input type="time" class="hours-close" value="${c.close || "17:00"}"></td>
+      </tr>`;
+    }).join("");
+    syncHoursInputs();
+  }
+  function syncHoursInputs() {
+    el.hoursRows.querySelectorAll("tr").forEach(tr => {
+      const on = tr.querySelector(".hours-mode").value === "hours";
+      tr.querySelectorAll("input[type=time]").forEach(i => { i.disabled = !on; });
+      tr.querySelector(".hours-times").style.opacity = on ? "1" : ".35";
+    });
+  }
+  el.hoursRows.addEventListener("change", e => { if (e.target.classList.contains("hours-mode")) syncHoursInputs(); });
+  function leerHorario() {                       // devuelve el horario, o null si hay un error (y lo avisa)
+    const H = {};
+    for (const tr of el.hoursRows.querySelectorAll("tr")) {
+      const mode = tr.querySelector(".hours-mode").value, open = tr.querySelector(".hours-open").value, close = tr.querySelector(".hours-close").value;
+      if (mode === "hours") {
+        if (!open || !close || open >= close) { showToast(`El horario del ${tr.querySelector(".hours-day").textContent.toLowerCase()} no es válido: la hora de cierre debe ser después de la de apertura.`, true); return null; }
+        H[tr.dataset.day] = { mode, open, close };
+      } else H[tr.dataset.day] = { mode };
+    }
+    return H;
   }
 
   el.settingsForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     el.settingsMessage.hidden = true;
+    const horario = leerHorario(); if (!horario) return;
     el.saveSettingsBtn.disabled = true;
     el.saveSettingsBtn.textContent = "Guardando…";
     const payload = {
@@ -1053,6 +1095,8 @@
       binance_email: "",            // por seguridad se borran el correo y el nombre que hubiera (los Ajustes son públicos)
       binance_holder_name: "",
       hide_soldout: el.settingsHideSoldout.value === "true",
+      hours_enabled: el.settingsHoursEnabled.checked,
+      business_hours: horario,
       zelle_email: el.settingsZelleEmail.value.trim(),
       zelle_holder_name: el.settingsZelleHolder.value.trim(),
     };

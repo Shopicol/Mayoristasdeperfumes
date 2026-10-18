@@ -229,3 +229,15 @@ input, select, textarea{ font-family:inherit; }
 .client-detail-line{ font-size:13px; padding:5px 0; border-bottom:1px dashed var(--line); line-height:1.5; }
 .client-detail-line:last-child{ border-bottom:none; }
 .client-detail-line span{ display:block; color:var(--ink-soft); font-size:12.5px; }
+
+/* horario de atención */
+.hours-box{ border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:14px 0; background:#FFFDF6; }
+.hours-title{ margin:0 0 8px; font-size:15px; }
+.hours-box label.check-row{ display:flex; flex-direction:row; align-items:flex-start; gap:10px; margin-bottom:12px; cursor:pointer; }
+.hours-box label.check-row input{ width:auto; flex:0 0 auto; margin:3px 0 0; }
+.hours-box label.check-row span{ font-size:13.5px; font-weight:600; color:var(--ink); line-height:1.4; }
+.hours-table{ width:100%; border-collapse:collapse; margin:4px 0 8px; }
+.hours-table td{ padding:6px 8px 6px 0; vertical-align:middle; font-size:13.5px; }
+.hours-day{ font-weight:600; width:96px; }
+.hours-times input{ padding:6px 8px; border:1px solid var(--line); border-radius:8px; font-size:13.5px; }
+.hours-mode{ padding:7px 9px; border:1px solid var(--line); border-radius:8px; font-size:13.5px; }

@@ -269,6 +269,12 @@
             </select>
           </label>
         </div>
+        <div class="hours-box">
+          <h3 class="hours-title">Horario de atención</h3>
+          <label class="check-row"><input type="checkbox" id="settingsHoursEnabled"> <span>Avisar al cliente, al terminar su pedido, si estamos dentro o fuera de horario</span></label>
+          <table class="hours-table"><tbody id="hoursRows"></tbody></table>
+          <small class="field-hint">Hora de Venezuela. <b>Con horario</b>: se atiende entre esas horas. <b>Virtual limitado</b>: sin hora fija; se le avisa al cliente que se le responde cuando haya una asesora disponible (por ejemplo, los domingos). <b>Cerrado</b>: ese día no se atiende. Fuera de horario, el cliente ve cuándo lo atenderán.</small>
+        </div>
         <div class="form-row two">
           <label><span>Zelle — Correo</span><input type="text" id="settingsZelleEmail"></label>
           <label><span>Zelle — Titular</span><input type="text" id="settingsZelleHolder"></label>
