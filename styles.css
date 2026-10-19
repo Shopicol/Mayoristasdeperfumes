@@ -569,3 +569,7 @@ input, select, textarea{ font-family:inherit; }
 .success-hours[hidden], .success-schedule[hidden]{ display:none; }
 
 .pay-safe b{ color:#1F4D22 !important; }
+
+/* mínimo: botón bloqueado y candado en los datos de pago */
+.btn-primary:disabled, .btn-primary[disabled]{ opacity:.55; cursor:not-allowed; filter:grayscale(.25); }
+.pay-locked{ display:block; padding:11px 13px; background:#FDECEC; border:1px solid #F3B8B8; border-radius:8px; color:#8A2A2A; font-size:13px; line-height:1.5; }

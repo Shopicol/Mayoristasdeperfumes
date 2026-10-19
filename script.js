@@ -204,6 +204,14 @@
     }, 0);
   }
 
+  /* ¿El pedido ya cumple el mínimo? Perfumes sueltos: 12 en total (de cualquier referencia). Las cajas van por unidad, sin mínimo.
+     Solo cuando se cumple se puede continuar y se muestran los datos de pago. */
+  function minimoFaltante() {
+    const pooled = pooledQty();
+    return pooled > 0 && pooled < WHOLESALE_MIN_TOTAL ? WHOLESALE_MIN_TOTAL - pooled : 0;
+  }
+  function cumpleMinimo() { return Object.keys(loadCart()).length > 0 && minimoFaltante() === 0; }
+
   function renderCartPanel() {
     const cart = loadCart();
     const entries = Object.entries(cart);
@@ -250,10 +258,13 @@
       el.cartMinProgress.textContent = `✓ Mínimo completo (${pooled} perfumes)`;
     } else {
       el.cartMinProgress.className = "cart-min-progress";
-      el.cartMinProgress.textContent = `Llevas ${pooled} de ${WHOLESALE_MIN_TOTAL} perfumes mínimos — agrega ${WHOLESALE_MIN_TOTAL - pooled} más (puedes combinar perfumes distintos; las cajas no cuentan)`;
+      el.cartMinProgress.textContent = `Llevas ${pooled} de ${WHOLESALE_MIN_TOTAL} perfumes mínimos — agrega ${WHOLESALE_MIN_TOTAL - pooled} más (puedes combinar perfumes distintos; las cajas no cuentan). Los datos de pago se muestran cuando completes el mínimo.`;
     }
 
     el.cartTotal.textContent = money(cartTotal());
+    const faltan = minimoFaltante();                                   // sin el mínimo no se puede continuar ni se ven los datos de pago
+    el.checkoutBtn.disabled = faltan > 0;
+    el.checkoutBtn.textContent = faltan > 0 ? `Agrega ${faltan} ${faltan === 1 ? "perfume más" : "perfumes más"} para continuar` : "Continuar pedido";
   }
 
   el.cartItems.addEventListener("click", e => {
@@ -759,6 +770,14 @@
   function updatePaymentDetailsBox() {
     const val = el.custPayment.value;
     const s = siteSettings || {};
+    if (!cumpleMinimo()) {                                          // red de seguridad: nunca mostrar datos de pago con un pedido incompleto
+      const faltan = minimoFaltante();
+      el.paymentDetailsBox.innerHTML = `<span class="pay-locked">🔒 Los datos de pago se muestran cuando tu pedido cumple el mínimo${faltan ? `: te faltan ${faltan} ${faltan === 1 ? "perfume" : "perfumes"} (mínimo ${WHOLESALE_MIN_TOTAL})` : ""}. Vuelve al carrito para completarlo.</span>`;
+      el.paymentDetailsBox.hidden = !ONLINE_PAYMENTS.includes(val);
+      el.payRefWrap.hidden = true; el.custPayRef.required = false; el.payProofWrap.hidden = true;
+      el.payLaterNote.hidden = !(val === "Pagar después" || val === "Efectivo");
+      return;
+    }
     const totalUsd = cartTotal();
     let html = "";
     if (val === "Pago móvil") {
@@ -853,6 +872,7 @@
   let chosenAdvisor = null; // { id, name, phone }
 
   function openCheckout() {
+    if (!cumpleMinimo()) { renderCartPanel(); return; }          // sin el mínimo no se abre el pedido (ni se ven los datos de pago)
     closeCart();
     chosenAdvisor = null;
     el.advisorStep.hidden = false;
