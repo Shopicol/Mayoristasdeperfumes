@@ -1091,7 +1091,15 @@
       pintarHorarioExito(order);
       el.checkoutSuccess.hidden = false;
     } catch (err) {
-      el.checkoutError.textContent = "No se pudo enviar tu pedido. Intenta de nuevo.";
+      // La base de datos valida cada pedido; si lo rechaza por ser inválido, se le explica al cliente con claridad (código PM001).
+      let msg = "No se pudo enviar tu pedido. Intenta de nuevo.";
+      if (err && err.code === "PM001") {
+        const codigo = err.message, detalle = err.details, siPago = " Si ya hiciste el pago, escríbele a tu asesora por WhatsApp con tu comprobante.";
+        if (codigo === "pedido_minimo") msg = `Tu pedido no llega al mínimo de ${WHOLESALE_MIN_TOTAL} perfumes${detalle ? ` (te faltan ${detalle})` : ""}. Cierra esta ventana, agrega los que faltan en el carrito y vuelve a intentarlo.`;
+        else if (codigo === "producto_no_disponible") { msg = `Uno de los productos${detalle ? ` («${detalle}»)` : ""} se agotó mientras hacías tu pedido. Cierra esta ventana, revisa tu carrito y vuelve a intentarlo.` + siPago; refrescarCatalogo(); }
+        else { msg = "Hay un problema con los productos de tu pedido. Cierra esta ventana, revisa tu carrito y vuelve a intentarlo." + siPago; refrescarCatalogo(); }
+      }
+      el.checkoutError.textContent = msg;
       el.checkoutError.hidden = false;
     } finally {
       el.submitOrderBtn.disabled = false;
@@ -1165,6 +1173,16 @@
     if (changed) saveCart(cart);
   }
   let settingsReady = Promise.resolve(null);
+
+  // Si la base rechazó un producto (se agotó, cambió), se pide el catálogo fresco para que el carrito y la tienda se pongan al día.
+  async function refrescarCatalogo() {
+    try {
+      const fresh = await fetchCatalog();
+      if (!fresh.length) return;
+      ALL_PRODUCTS = fresh; PRODUCTS = visibleCatalog(ALL_PRODUCTS, hideSoldOutNow());
+      pruneCart(); render(); updateCartBadge(); renderCartPanel();
+    } catch (e) { /* si no hay red, queda como estaba */ }
+  }
 
   function paintStore(bannerData) {
     pruneCart();
