@@ -90,6 +90,12 @@
     bannerFieldSubtitle: document.getElementById("bannerFieldSubtitle"),
     bannerFieldImageFile: document.getElementById("bannerFieldImageFile"),
     bannerFieldImagePreview: document.getElementById("bannerFieldImagePreview"),
+    ordersMonth: document.getElementById("ordersMonth"),
+    ordersMonthInfo: document.getElementById("ordersMonthInfo"),
+    ordersExportMonthBtn: document.getElementById("ordersExportMonthBtn"),
+    ordersExportAllBtn: document.getElementById("ordersExportAllBtn"),
+    monthsCard: document.getElementById("monthsCard"),
+    monthsBody: document.getElementById("monthsBody"),
     tabClients: document.getElementById("tabClients"),
     clientsSearch: document.getElementById("clientsSearch"),
     clientsExportBtn: document.getElementById("clientsExportBtn"),
@@ -489,7 +495,11 @@
   /* ---------------------------------------------------------------
      PEDIDOS
      --------------------------------------------------------------- */
-  let allOrders = [];
+  let allOrders = [];              // los pedidos del MES elegido (lo que se ve en la pestaña Pedidos)
+  let selectedMonth = "";          // "2026-10"
+  let todayOrders = [];            // pedidos de hoy Tomado/Entregado (para «Ventas de hoy»)
+  let summaryByMonth = null;       // resumen por mes (lo calcula la base de datos)
+  let clientsOrders = [], clientsLoaded = false, clientsLoading = false;
   const STATUS_LABELS = { nuevo: "🆕 Nuevo", tomado: "📦 Tomado", entregado: "✅ Entregado", cancelado: "❌ Cancelado" };
   const PAY_LABELS = { pendiente: "⏳ Pago pendiente", por_verificar: "🔎 Pago por verificar", pagado: "✅ Pagado" };
 
@@ -503,7 +513,7 @@
   let clientsList = [], openClientKey = null;
 
   function buildClients() {
-    const sorted = [...allOrders].sort((x, y) => new Date(y.created_at) - new Date(x.created_at));   // más reciente primero
+    const sorted = [...clientsOrders].sort((x, y) => new Date(y.created_at) - new Date(x.created_at));   // más reciente primero
     const phoneKey = o => digitsOnly(o.phone).slice(-10);
     const phoneToCed = {};
     sorted.forEach(o => { const c = digitsOnly(o.customer_cedula); if (c.length >= 6 && phoneKey(o) && !phoneToCed[phoneKey(o)]) phoneToCed[phoneKey(o)] = c; });
@@ -544,8 +554,9 @@
     const row = e.target.closest("[data-client]"); if (!row) return;
     openClientKey = openClientKey === row.dataset.client ? null : row.dataset.client; renderClients();
   });
-  el.clientsExportBtn.addEventListener("click", () => {
+  el.clientsExportBtn.addEventListener("click", async () => {
     if (!window.XLSX) { showToast("No se pudo cargar el lector de Excel. Recarga la página.", true); return; }
+    await ensureClientsLoaded();
     buildClients();
     const aoa = [["Cliente", "Cédula", "Teléfono", "Pedidos (sin cancelados)", "Total US$ (sin cancelados)", "Primer pedido", "Último pedido", "Asesora(s)"],
       ...clientsList.map(c => [c.name, c.cedula, c.phone, c.count, Math.round(c.total * 100) / 100, dayFmtVE(c.first), dayFmtVE(c.last), c.advisors.join(", ")])];
@@ -556,12 +567,60 @@
     XLSX.writeFile(wb, "clientes_mayoristas.xlsx"); showToast("Excel de clientes descargado ✓");
   });
 
+  /* ---------- Descargar pedidos en Excel (un mes, o todo el historial) ---------- */
+  const ESTADO_TXT = { nuevo: "Nuevo", tomado: "Tomado", entregado: "Entregado", cancelado: "Cancelado" };
+  const PAGO_TXT = { pendiente: "Pago pendiente", por_verificar: "Pago por verificar", pagado: "Pagado" };
+  const ASIGNA_TXT = { link: "Link personal", recordada: "Recordada y confirmada", elegida: "Elegida por el cliente", turno: "Por turno" };
+  function resumenDe(pedidos) {
+    const vigentes = pedidos.filter(o => o.status !== "cancelado");
+    return { pedidos: vigentes.length, total: vigentes.reduce((s, o) => s + (Number(o.total) || 0), 0), vendido: pedidos.filter(o => o.status === "tomado" || o.status === "entregado").reduce((s, o) => s + (Number(o.total) || 0), 0), cancelados: pedidos.length - vigentes.length };
+  }
+  function exportarPedidosExcel(pedidos, archivo, titulo, porMes) {
+    if (!window.XLSX) { showToast("No se pudo cargar el lector de Excel. Recarga la página.", true); return; }
+    const fecha = d => new Date(d).toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Caracas" });
+    const hora = d => new Date(d).toLocaleTimeString("es-VE", { hour: "2-digit", minute: "2-digit", timeZone: "America/Caracas" });
+    const orden = [...pedidos].sort((x, y) => new Date(x.created_at) - new Date(y.created_at));
+    const aoa = [["Pedido #", "Fecha", "Hora", "Cliente", "Cédula", "Teléfono", "Ciudad", "Entrega", "Dirección", "Asesora", "Cómo se asignó", "Productos", "Total US$", "Total Bs", "Tasa", "Forma de pago", "Estado del pago", "Referencia", "Estado del pedido", "Nota"],
+      ...orden.map(o => [o.id, fecha(o.created_at), hora(o.created_at), o.customer_name || "", o.customer_cedula || "", o.phone || "", o.city || "", o.delivery_method || "", o.address || "", o.advisor_name || "", ASIGNA_TXT[o.assigned_by] || "",
+        (Array.isArray(o.items) ? o.items : []).map(i => `${i.qty} × ${i.name}`).join("; "), Math.round((Number(o.total) || 0) * 100) / 100, o.total_bs ? Math.round(Number(o.total_bs) * 100) / 100 : "", o.exchange_rate || "", o.payment_method || "", PAGO_TXT[o.payment_status] || o.payment_status || "", o.payment_reference || "", ESTADO_TXT[o.status] || o.status, o.note || ""])];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    for (let r = 1; r < aoa.length; r++) for (const c of [4, 5, 17]) { const cell = ws[XLSX.utils.encode_cell({ r, c })]; if (cell && cell.v !== "") { cell.t = "s"; cell.v = String(cell.v); cell.z = "@"; } }
+    ws["!cols"] = [8, 11, 8, 30, 14, 15, 14, 12, 28, 12, 22, 60, 11, 13, 8, 14, 18, 14, 14, 28].map(w => ({ wch: w })); ws["!freeze"] = { xSplit: 0, ySplit: 1 };
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Pedidos");
+    // hoja de resumen
+    const r0 = resumenDe(pedidos), res = [[titulo], [], ["Pedidos (sin cancelados)", r0.pedidos], ["Total de los pedidos US$ (sin cancelados)", Math.round(r0.total * 100) / 100], ["Vendido US$ (Tomado + Entregado)", Math.round(r0.vendido * 100) / 100], ["Cancelados", r0.cancelados], []];
+    if (porMes) {
+      res.push(["Mes", "Pedidos", "Total US$", "Vendido US$"]);
+      const meses = {}; pedidos.forEach(o => { const k = mesVE(new Date(o.created_at)); (meses[k] = meses[k] || []).push(o); });
+      Object.keys(meses).sort().reverse().forEach(k => { const x = resumenDe(meses[k]); res.push([nombreMes(k), x.pedidos, Math.round(x.total * 100) / 100, Math.round(x.vendido * 100) / 100]); });
+    } else {
+      res.push(["Asesora", "Pedidos", "Total US$", "Vendido US$"]);
+      const por = {}; pedidos.forEach(o => { const k = o.advisor_name || "Sin asesora"; (por[k] = por[k] || []).push(o); });
+      Object.keys(por).sort().forEach(k => { const x = resumenDe(por[k]); res.push([k, x.pedidos, Math.round(x.total * 100) / 100, Math.round(x.vendido * 100) / 100]); });
+    }
+    const w2 = XLSX.utils.aoa_to_sheet(res); w2["!cols"] = [42, 12, 14, 14].map(w => ({ wch: w })); XLSX.utils.book_append_sheet(wb, w2, "Resumen");
+    XLSX.writeFile(wb, archivo);
+  }
+  el.ordersExportMonthBtn.addEventListener("click", () => {
+    if (!allOrders.length) { showToast(`No hay pedidos en ${nombreMes(selectedMonth)} para descargar.`, true); return; }
+    exportarPedidosExcel(allOrders, `pedidos_${selectedMonth}.xlsx`, `Pedidos de ${nombreMes(selectedMonth)}`, false);
+    showToast(`Excel de ${nombreMes(selectedMonth)} descargado ✓`);
+  });
+  el.ordersExportAllBtn.addEventListener("click", async () => {
+    el.ordersExportAllBtn.disabled = true; const t = el.ordersExportAllBtn.textContent; el.ordersExportAllBtn.textContent = "Preparando…";
+    try {
+      const todos = await pedidosPaginado(null);
+      if (!todos.length) { showToast("Todavía no hay pedidos para descargar.", true); return; }
+      exportarPedidosExcel(todos, `pedidos_historial_${mesVE()}.xlsx`, "Todo el historial de pedidos", true);
+      showToast(`Historial descargado: ${todos.length} pedidos ✓`);
+    } catch (err) { showToast("No se pudo preparar el historial: " + err.message, true); }
+    finally { el.ordersExportAllBtn.disabled = false; el.ordersExportAllBtn.textContent = t; }
+  });
+
   /* Ventas de hoy: suma de los pedidos TOMADO y ENTREGADO creados hoy (hora de Venezuela). Solo la administradora la ve. */
   function paintSales() {
     if (currentRole !== "admin") { el.salesTodayCard.hidden = true; return; }
-    const dayFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Caracas", year: "numeric", month: "2-digit", day: "2-digit" });
-    const today = dayFmt.format(new Date());
-    const counted = allOrders.filter(o => (o.status === "tomado" || o.status === "entregado") && o.created_at && dayFmt.format(new Date(o.created_at)) === today);
+    const counted = todayOrders.filter(o => o.status === "tomado" || o.status === "entregado");
     const total = counted.reduce((s, o) => s + (Number(o.total) || 0), 0);
     const byAdvisor = {};
     counted.forEach(o => { const n = o.advisor_name || "Sin asesora"; byAdvisor[n] = (byAdvisor[n] || 0) + (Number(o.total) || 0); });
@@ -572,21 +631,90 @@
     el.salesTodayCard.hidden = false;
   }
 
-  async function loadOrders() {
-    const { data, error } = await supabaseClient.from("orders").select("*").order("created_at", { ascending: false });
-    if (error) { showToast("No se pudieron cargar los pedidos: " + error.message, true); return; }
-    allOrders = data || [];
-    const pending = allOrders.filter(o => o.status === "nuevo").length;
-    el.statNewOrders.textContent = pending;
-    el.ordersBadge.textContent = pending;
-    el.ordersBadge.hidden = pending === 0;
-    renderOrders();
-    paintSales();
-    renderClients();
+  /* ---------------------------------------------------------------
+     PEDIDOS POR MES
+     La pestaña Pedidos muestra UN mes a la vez (por defecto, el actual). Nada se borra nunca.
+     Los pedidos se traen por partes de 1.000, así que nunca se pierde ninguno aunque haya miles.
+     El mes se cuenta en hora de Venezuela (UTC-4).
+     --------------------------------------------------------------- */
+  const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  const nombreMes = ym => { const [y, m] = ym.split("-"); const n = MESES[Number(m) - 1]; return `${n[0].toUpperCase()}${n.slice(1)} ${y}`; };
+  function partesVE(d = new Date()) {
+    const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Caracas", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d).map(x => [x.type, x.value]));
+    return { y: Number(p.year), m: Number(p.month), d: Number(p.day) };
   }
+  const mesVE = (d = new Date()) => { const { y, m } = partesVE(d); return `${y}-${String(m).padStart(2, "0")}`; };
+  function rangoMes(ym) {                         // medianoche de Venezuela = 04:00 UTC
+    const [y, m] = ym.split("-").map(Number);
+    return { start: new Date(Date.UTC(y, m - 1, 1, 4)).toISOString(), end: new Date(Date.UTC(m === 12 ? y + 1 : y, m === 12 ? 0 : m, 1, 4)).toISOString() };
+  }
+  async function pedidosPaginado(aplicar, columnas = "*") {
+    const todos = [], TAM = 1000;
+    for (let desde = 0; ; desde += TAM) {
+      let q = supabaseClient.from("orders").select(columnas).order("created_at", { ascending: false }).order("id", { ascending: false }).range(desde, desde + TAM - 1);
+      if (aplicar) q = aplicar(q);
+      const { data, error } = await q;
+      if (error) throw error;
+      todos.push(...(data || []));
+      if (!data || data.length < TAM) break;
+    }
+    return todos;
+  }
+  async function refreshPending() {              // pedidos nuevos de TODOS los meses (para el globito y el resumen)
+    const { count, error } = await supabaseClient.from("orders").select("id", { count: "exact", head: true }).eq("status", "nuevo");
+    if (error) return;
+    const pending = count || 0;
+    el.statNewOrders.textContent = pending; el.ordersBadge.textContent = pending; el.ordersBadge.hidden = pending === 0;
+  }
+  async function loadTodaySales() {
+    if (currentRole !== "admin") { el.salesTodayCard.hidden = true; return; }
+    const { y, m, d } = partesVE(), inicio = new Date(Date.UTC(y, m - 1, d, 4)).toISOString(), fin = new Date(Date.UTC(y, m - 1, d + 1, 4)).toISOString();   // hoy: de medianoche a medianoche (Venezuela)
+    const { data, error } = await supabaseClient.from("orders").select("id,total,status,advisor_name,created_at").gte("created_at", inicio).lt("created_at", fin).in("status", ["tomado", "entregado"]);
+    if (error) return;
+    todayOrders = data || []; paintSales();
+  }
+  async function loadMonthSummary() {
+    const { data, error } = await supabaseClient.rpc("orders_by_month", { p_months: 24 });
+    summaryByMonth = !error && Array.isArray(data) ? data : null;       // si falta el SQL, queda sin tabla pero todo lo demás funciona
+    const meses = new Map((summaryByMonth || []).map(f => [f.month, f]));
+    const hoy = mesVE();
+    const sinDato = summaryByMonth ? 0 : null;                            // sin la función de resumen no se muestra un conteo que sería falso
+    if (!meses.has(hoy)) meses.set(hoy, { month: hoy, pedidos: sinDato });
+    if (selectedMonth && !meses.has(selectedMonth)) meses.set(selectedMonth, { month: selectedMonth, pedidos: sinDato });
+    if (!summaryByMonth) { let [y, m] = hoy.split("-").map(Number); for (let i = 0; i < 5; i++) { m--; if (m === 0) { m = 12; y--; } const k = `${y}-${String(m).padStart(2, "0")}`; if (!meses.has(k)) meses.set(k, { month: k }); } }
+    el.ordersMonth.innerHTML = [...meses.keys()].sort().reverse().map(ym => { const f = meses.get(ym); return `<option value="${ym}">${nombreMes(ym)}</option>`; }).join("");
+    el.ordersMonth.value = selectedMonth;
+    paintMonthTable();
+  }
+  function paintMonthTable() {
+    if (currentRole !== "admin" || !summaryByMonth || !summaryByMonth.length) { el.monthsCard.hidden = true; return; }
+    el.monthsBody.innerHTML = summaryByMonth.slice(0, 12).map(f => `<tr><td><b>${nombreMes(f.month)}</b></td><td>${f.pedidos}</td><td>${money(f.total)}</td><td>${money(f.vendido)}</td></tr>`).join("");
+    el.monthsCard.hidden = false;
+  }
+  function invalidateClients() { clientsLoaded = false; if (!el.tabClients.hidden) ensureClientsLoaded(); }
+  async function ensureClientsLoaded() {
+    if (clientsLoaded || clientsLoading) return;
+    clientsLoading = true; el.clientsSummary.textContent = "Cargando clientes…";
+    try { clientsOrders = await pedidosPaginado(null, "id,created_at,customer_name,customer_cedula,phone,items,total,status,advisor_name"); clientsLoaded = true; renderClients(); }
+    catch (err) { el.clientsSummary.textContent = "No se pudieron cargar los clientes: " + err.message; }
+    finally { clientsLoading = false; }
+  }
+  document.querySelector('.admin-tab[data-tab="clients"]').addEventListener("click", ensureClientsLoaded);
+
+  async function loadOrders() {
+    if (!selectedMonth) selectedMonth = mesVE();
+    const { start, end } = rangoMes(selectedMonth);
+    try { allOrders = await pedidosPaginado(q => q.gte("created_at", start).lt("created_at", end)); }
+    catch (err) { showToast("No se pudieron cargar los pedidos: " + err.message, true); return; }
+    const cancelados = allOrders.filter(o => o.status === "cancelado").length;
+    el.ordersMonthInfo.textContent = `${allOrders.length} ${allOrders.length === 1 ? "pedido" : "pedidos"} en ${nombreMes(selectedMonth)}${cancelados ? ` (${cancelados} ${cancelados === 1 ? "cancelado" : "cancelados"})` : ""}`;
+    renderOrders();
+    refreshPending(); loadTodaySales(); loadMonthSummary(); invalidateClients();
+  }
+  el.ordersMonth.addEventListener("change", () => { selectedMonth = el.ordersMonth.value; loadOrders(); });
 
   function renderOrders() {
-    if (!allOrders.length) { el.ordersList.innerHTML = ""; el.ordersEmpty.hidden = false; return; }
+    if (!allOrders.length) { el.ordersList.innerHTML = ""; el.ordersEmpty.textContent = `No hay pedidos en ${nombreMes(selectedMonth || mesVE())}.`; el.ordersEmpty.hidden = false; return; }
     el.ordersEmpty.hidden = true;
     el.ordersList.innerHTML = allOrders.map(o => {
       const items = Array.isArray(o.items) ? o.items : [];
@@ -709,11 +837,7 @@
     if (error) { showToast("No se pudo actualizar: " + error.message, true); return; }
     const o = allOrders.find(x => String(x.id) === id);
     if (o) o.status = e.target.value;
-    const pending = allOrders.filter(x => x.status === "nuevo").length;
-    el.statNewOrders.textContent = pending;
-    el.ordersBadge.textContent = pending;
-    el.ordersBadge.hidden = pending === 0;
-    paintSales();
+    refreshPending(); loadTodaySales(); loadMonthSummary(); invalidateClients();
     showToast("Estado actualizado");
   });
 

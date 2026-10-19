@@ -68,6 +68,16 @@
           <small id="statSalesTodayDetail"></small>
         </div>
       </div>
+      <div class="months-card" id="monthsCard" hidden>
+        <h3>Ventas por mes</h3>
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead><tr><th>Mes</th><th>Pedidos</th><th>Total de los pedidos</th><th>Vendido (Tomado + Entregado)</th></tr></thead>
+            <tbody id="monthsBody"></tbody>
+          </table>
+        </div>
+        <small class="field-hint">Los pedidos cancelados no se cuentan. El mes se cuenta en hora de Venezuela.</small>
+      </div>
     </div>
 
     <!-- ============ TAB: PRODUCTOS ============ -->
@@ -106,6 +116,14 @@
       <div class="my-link-box" id="myLinkBox" hidden>
         <div class="my-link-text"><strong>Tu link personal</strong><span>Envíaselo a tus clientes: cuando lo abren, el pedido te llega a ti.</span></div>
         <div class="my-link-row"><input type="text" id="myLinkUrl" readonly><button type="button" class="btn-primary" id="copyMyLinkBtn">Copiar</button></div>
+      </div>
+      <div class="orders-toolbar">
+        <label class="orders-month"><span>Mes</span><select id="ordersMonth"></select></label>
+        <span class="orders-count" id="ordersMonthInfo"></span>
+        <div class="orders-actions">
+          <button type="button" class="btn-primary" id="ordersExportMonthBtn">⬇ Descargar este mes (Excel)</button>
+          <button type="button" class="btn-ghost" id="ordersExportAllBtn">⬇ Todo el historial</button>
+        </div>
       </div>
       <div class="orders-list" id="ordersList"></div>
       <p class="admin-empty" id="ordersEmpty" hidden>Todavía no hay pedidos.</p>

@@ -241,3 +241,16 @@ input, select, textarea{ font-family:inherit; }
 .hours-day{ font-weight:600; width:96px; }
 .hours-times input{ padding:6px 8px; border:1px solid var(--line); border-radius:8px; font-size:13.5px; }
 .hours-mode{ padding:7px 9px; border:1px solid var(--line); border-radius:8px; font-size:13.5px; }
+
+/* pedidos por mes */
+.orders-toolbar{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 14px; padding:12px 14px; background:#FFFDF6; border:1px solid var(--line); border-radius:12px; }
+.orders-month{ display:flex; align-items:center; gap:8px; }
+.orders-month span{ font-weight:700; font-size:13px; }
+.orders-month select{ padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-size:14px; min-width:190px; }
+.orders-count{ font-size:13px; color:var(--ink-soft); }
+.orders-actions{ margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
+.months-card{ margin-top:22px; padding:16px 18px; background:#FFFDF6; border:1px solid var(--line); border-radius:12px; }
+.months-card h3{ margin:0 0 10px; font-size:16px; }
+.orders-actions .btn-ghost{ background:#fff; color:var(--ink); border:1.5px solid var(--gold); border-radius:10px; padding:10px 16px; font-weight:700; cursor:pointer; }
+.orders-actions .btn-ghost:hover{ background:#FFF6DD; }
+.orders-actions .btn-ghost:disabled{ opacity:.6; cursor:wait; }
