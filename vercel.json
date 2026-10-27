@@ -1,0 +1,4 @@
+{
+  "buildCommand": "TIENDA=mayoristas sh verificar-tienda.sh",
+  "outputDirectory": "."
+}
