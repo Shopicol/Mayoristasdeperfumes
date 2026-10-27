@@ -254,3 +254,12 @@ input, select, textarea{ font-family:inherit; }
 .orders-actions .btn-ghost{ background:#fff; color:var(--ink); border:1.5px solid var(--gold); border-radius:10px; padding:10px 16px; font-weight:700; cursor:pointer; }
 .orders-actions .btn-ghost:hover{ background:#FFF6DD; }
 .orders-actions .btn-ghost:disabled{ opacity:.6; cursor:wait; }
+
+/* asesora oculta (clientes VIP) */
+.vip-check{ margin-top:8px; align-items:flex-start; }
+.vip-check span{ font-size:13px; line-height:1.45; }
+.vip-box{ margin:10px 0; padding:12px 14px; background:#FFF6DD; border:1px solid var(--gold); border-radius:10px; }
+.vip-box input{ width:100%; margin:6px 0 8px; font-size:12.5px; }
+.vip-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+.vip-badge{ display:inline-block; margin-left:6px; padding:2px 8px; border-radius:999px; background:#1F1A12; color:#E8C468; font-size:10.5px; font-weight:700; letter-spacing:.03em; }
+.vip-tag{ margin-left:8px; color:#8A6A1B; font-size:11.5px; font-weight:700; }

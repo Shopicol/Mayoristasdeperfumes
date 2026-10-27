@@ -1,6 +1,23 @@
 (function () {
   "use strict";
 
+  /* El formulario de asesoras trae la casilla «Oculta» y el cuadro del link VIP. Se agregan aquí, para que este archivo
+     funcione solo con el admin/index.html que ya está publicado (así no hace falta subir otro index.html). */
+  (function agregarCamposVip() {
+    if (document.getElementById("advisorFieldHidden")) return;            // si el HTML ya los trae, no se duplican
+    const activa = document.getElementById("advisorFieldActive"), fila = activa && activa.closest(".form-row");
+    if (fila) fila.insertAdjacentHTML("afterend", `
+      <label class="checkbox-label vip-check"><input type="checkbox" id="advisorFieldHidden"><span>🔒 <b>Oculta (clientes VIP)</b>: no sale en la lista de la tienda, no entra en el reparto por turnos y no se puede escoger. Solo se llega a ella con su link secreto.</span></label>
+      <div class="vip-box" id="advisorVipBox" hidden>
+        <span class="field-label">Link VIP (solo para quien deba usarlo; no lo publiques)</span>
+        <input type="text" id="advisorVipLink" readonly>
+        <div class="vip-actions"><button type="button" class="posgold-btn" id="advisorVipCopy">Copiar link</button><button type="button" id="advisorVipRenew">Renovar link</button></div>
+        <small class="field-hint">Si renuevas el link, el anterior deja de funcionar.</small>
+      </div>`);
+    const nota = document.querySelector("#tabAdvisors .banners-hint");
+    if (nota && !nota.textContent.includes("ocultas")) nota.textContent += " Las asesoras marcadas 🔒 están ocultas (clientes VIP): no reciben turnos y solo se llega a ellas con su link secreto.";
+  })();
+
   const el = {
     loginScreen: document.getElementById("loginScreen"),
     loginForm: document.getElementById("loginForm"),
@@ -25,6 +42,11 @@
     advisorModalClose: document.getElementById("advisorModalClose"),
     advisorModalTitle: document.getElementById("advisorModalTitle"),
     advisorForm: document.getElementById("advisorForm"),
+    advisorFieldHidden: document.getElementById("advisorFieldHidden"),
+    advisorVipBox: document.getElementById("advisorVipBox"),
+    advisorVipLink: document.getElementById("advisorVipLink"),
+    advisorVipCopy: document.getElementById("advisorVipCopy"),
+    advisorVipRenew: document.getElementById("advisorVipRenew"),
     advisorFieldId: document.getElementById("advisorFieldId"),
     advisorFieldName: document.getElementById("advisorFieldName"),
     advisorFieldPhone: document.getElementById("advisorFieldPhone"),
@@ -214,6 +236,8 @@
   const SITE_URL = "https://www.mayoristasdeperfumesven.com/";
   const slugOf = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "");
   const advisorLink = name => `${SITE_URL}?asesora=${slugOf(name)}`;
+  const vipLink = token => `${SITE_URL}?vip=${token}`;
+  const newVipToken = () => Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, "0")).join("");   // 32 caracteres al azar
   async function copyText(text) {
     try { await navigator.clipboard.writeText(text); return true; }
     catch (e) {
@@ -252,13 +276,14 @@
       // Asesora: solo Productos, Carga masiva y SUS pedidos (la base de datos además lo impone).
       const allowed = ["products", "bulk", "orders", "clients"];
       document.querySelectorAll(".admin-tab").forEach(b => { b.hidden = !allowed.includes(b.dataset.tab); });
-      let name = "";
+      let name = "", vipUrl = "";
       if (staff.advisor_id) {
-        const { data } = await supabaseClient.from("advisors").select("name").eq("id", staff.advisor_id).maybeSingle();
+        const { data } = await supabaseClient.from("advisors").select("*").eq("id", staff.advisor_id).maybeSingle();
         name = data ? data.name : "";
+        if (data && data.is_hidden && data.vip_token) vipUrl = vipLink(data.vip_token);
       }
       el.adminUserEmail.textContent = name ? `Asesora ${name}` : user.email;
-      if (name) { el.myLinkUrl.value = advisorLink(name); el.myLinkBox.hidden = false; }
+      if (name) { el.myLinkUrl.value = vipUrl || advisorLink(name); el.myLinkBox.hidden = false; }
       loadProducts();
       loadOrders();
       document.querySelector('.admin-tab[data-tab="orders"]').click();
@@ -1029,9 +1054,9 @@
   }
 
   function renderAdvisorLinks() {
-    const activas = allAdvisors.filter(a => a.active);
-    el.advisorLinks.innerHTML = activas.length ? `<h3>Links personales</h3><p class="banners-hint">Cada asesora manda el suyo: al abrirlo, el pedido le llega a ella.</p>` + activas.map(a => `
-      <div class="advisor-link-row"><b>${a.name}</b><input type="text" readonly value="${advisorLink(a.name)}"><button type="button" class="posgold-btn" data-copy-link="${advisorLink(a.name)}">Copiar</button></div>`).join("") : "";
+    const activas = allAdvisors.filter(a => a.active && (!a.is_hidden || a.vip_token));
+    el.advisorLinks.innerHTML = activas.length ? `<h3>Links personales</h3><p class="banners-hint">Cada asesora manda el suyo: al abrirlo, el pedido le llega a ella.</p>` + activas.map(a => { const url = a.is_hidden ? vipLink(a.vip_token) : advisorLink(a.name); return `
+      <div class="advisor-link-row"><b>${a.is_hidden ? "🔒 " : ""}${a.name}</b>${a.is_hidden ? `<small class="vip-tag">link VIP (secreto)</small>` : ""}<input type="text" readonly value="${url}"><button type="button" class="posgold-btn" data-copy-link="${url}">Copiar</button></div>`; }).join("") : "";
   }
 
   function renderAdvisorsTable() {
@@ -1039,7 +1064,7 @@
     el.advisorsTableBody.innerHTML = allAdvisors.map(a => `
       <tr>
         <td><img class="row-thumb" src="${a.image || ''}" alt=""></td>
-        <td>${a.name}</td>
+        <td>${a.is_hidden ? "🔒 " : ""}${a.name}${a.is_hidden ? ` <span class="vip-badge">VIP · oculta</span>` : ""}</td>
         <td>${a.phone}</td>
         <td>${a.sort_order}</td>
         <td><span class="badge-avail ${a.active ? 'yes' : 'no'}">${a.active ? "Sí" : "No"}</span></td>
@@ -1052,6 +1077,29 @@
     if (id) openAdvisorModal(allAdvisors.find(a => String(a.id) === id));
   });
 
+  // La caja del link VIP solo aparece cuando la asesora YA está guardada como oculta (así el código ya existe).
+  function showVipBox(advisor) {
+    const tiene = advisor && advisor.is_hidden && advisor.vip_token;
+    el.advisorVipBox.hidden = !tiene;
+    el.advisorVipLink.value = tiene ? vipLink(advisor.vip_token) : "";
+  }
+  el.advisorVipCopy.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(el.advisorVipLink.value); showToast("Link VIP copiado ✓"); }
+    catch (e) { el.advisorVipLink.select(); document.execCommand("copy"); showToast("Link VIP copiado ✓"); }
+  });
+  el.advisorVipRenew.addEventListener("click", async () => {
+    const id = el.advisorFieldId.value; if (!id) return;
+    if (!confirm("¿Renovar el link VIP? El link anterior dejará de funcionar y tendrás que enviar el nuevo.")) return;
+    const token = newVipToken();
+    const { error } = await supabaseClient.from("advisors").update({ vip_token: token }).eq("id", id);
+    if (error) { showToast("No se pudo renovar: " + error.message, true); return; }
+    await loadAdvisors(); showVipBox(allAdvisors.find(a => String(a.id) === id)); showToast("Link VIP renovado ✓ (el anterior ya no funciona)");
+  });
+  el.advisorFieldHidden.addEventListener("change", () => {
+    if (!el.advisorFieldHidden.checked) el.advisorVipBox.hidden = true;
+    else { const ex = allAdvisors.find(a => String(a.id) === el.advisorFieldId.value); showVipBox(ex || null); }
+  });
+
   function openAdvisorModal(advisor) {
     pendingAdvisorImageFile = null;
     el.advisorFormMessage.hidden = true;
@@ -1062,6 +1110,8 @@
       el.advisorFieldPhone.value = advisor.phone || "";
       el.advisorFieldSort.value = advisor.sort_order || 0;
       el.advisorFieldActive.checked = Boolean(advisor.active);
+      el.advisorFieldHidden.checked = Boolean(advisor.is_hidden);
+      showVipBox(advisor);
       if (advisor.image) { el.advisorFieldImagePreview.src = advisor.image; el.advisorFieldImagePreview.hidden = false; }
       else el.advisorFieldImagePreview.hidden = true;
       el.deleteAdvisorBtn.hidden = false;
@@ -1070,6 +1120,8 @@
       el.advisorForm.reset();
       el.advisorFieldId.value = "";
       el.advisorFieldActive.checked = true;
+      el.advisorFieldHidden.checked = false;
+      showVipBox(null);
       el.advisorFieldImagePreview.hidden = true;
       el.deleteAdvisorBtn.hidden = true;
     }
@@ -1115,6 +1167,12 @@
         active: el.advisorFieldActive.checked,
         image: imageUrl,
       };
+      // Los campos de «oculta» solo se mandan si la base ya los tiene (o si se está pidiendo ocultar): así editar asesoras normales nunca se rompe.
+      const tieneVip = allAdvisors.some(a => "is_hidden" in a);
+      if (tieneVip || el.advisorFieldHidden.checked) {
+        payload.is_hidden = el.advisorFieldHidden.checked;
+        payload.vip_token = payload.is_hidden ? ((existing && existing.vip_token) || newVipToken()) : null;
+      }
       let error;
       if (id) ({ error } = await supabaseClient.from("advisors").update(payload).eq("id", id));
       else ({ error } = await supabaseClient.from("advisors").insert(payload));
