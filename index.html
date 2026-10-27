@@ -3,440 +3,365 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin — Mayoristas de Perfumes Venezuela</title>
+<title>Mayoristas de Perfumes Venezuela</title>
+<meta name="description" content="Perfumería al por mayor en Venezuela. Fragancias importadas directo para tu negocio: mínimo 12 perfumes (cajas desde 1 unidad). Pide con tu asesora por WhatsApp.">
+<meta name="theme-color" content="#0C0906">
+<link rel="canonical" href="https://www.mayoristasdeperfumesven.com/">
+<!-- Vista previa al compartir el link (WhatsApp, Instagram, etc.) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Mayoristas de Perfumes Venezuela">
+<meta property="og:locale" content="es_VE">
+<meta property="og:title" content="Mayoristas de Perfumes Venezuela">
+<meta property="og:description" content="Perfumería al por mayor: fragancias importadas, mínimo 12 perfumes y cajas desde 1 unidad. Pide con tu asesora.">
+<meta property="og:url" content="https://www.mayoristasdeperfumesven.com/">
+<meta property="og:image" content="https://www.mayoristasdeperfumesven.com/og-image.jpg?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Mayoristas de Perfumes Venezuela">
+<meta name="twitter:image" content="https://www.mayoristasdeperfumesven.com/og-image.jpg?v=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="admin.css">
+<link href="https://fonts.googleapis.com/css2?family=Italiana&family=Jost:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script>try{ if (sessionStorage.getItem("mpv_ve_ok") === "1") document.documentElement.classList.add("ve-ok"); }catch(e){}</script>
 </head>
 <body>
 
-<!-- ============ LOGIN ============ -->
-<div class="login-screen" id="loginScreen">
-  <div class="login-card">
-    <h1>Mayoristas <span>de Perfumes Venezuela</span></h1>
-    <p class="login-sub">Panel de administración</p>
-    <form id="loginForm">
-      <label>
-        <span>Correo</span>
-        <input type="email" id="loginEmail" required autocomplete="username">
-      </label>
-      <label>
-        <span>Contraseña</span>
-        <input type="password" id="loginPassword" required autocomplete="current-password">
-      </label>
-      <button type="submit" id="loginBtn">Entrar</button>
-      <p class="login-error" id="loginError" hidden></p>
-    </form>
+<!-- ============ AVISO: SOLO VENDEMOS EN VENEZUELA (se ve una vez por visita) ============ -->
+<div class="ve-overlay" id="veOverlay" role="dialog" aria-modal="true" aria-labelledby="veTitle">
+  <div class="ve-card">
+    <div class="ve-attn"><span aria-hidden="true">⚠</span> ATENCIÓN</div>
+    <div class="ve-body">
+      <svg class="ve-flag" viewBox="0 0 120 80" role="img" aria-label="Bandera de Venezuela"><rect width="120" height="26.67" fill="#FFCC00"/><rect y="26.67" width="120" height="26.67" fill="#00247D"/><rect y="53.33" width="120" height="26.67" fill="#CF142B"/><polygon points="40.30,49.63 40.99,51.59 43.06,51.63 41.41,52.89 42.01,54.87 40.30,53.69 38.60,54.87 39.20,52.89 37.55,51.63 39.62,51.59" fill="#fff"/><polygon points="43.20,42.25 43.88,44.21 45.96,44.25 44.30,45.51 44.90,47.50 43.20,46.31 41.49,47.50 42.10,45.51 40.44,44.25 42.52,44.21" fill="#fff"/><polygon points="48.73,36.58 49.42,38.54 51.49,38.58 49.84,39.83 50.44,41.82 48.73,40.64 47.03,41.82 47.63,39.83 45.98,38.58 48.05,38.54" fill="#fff"/><polygon points="56.04,33.50 56.72,35.46 58.80,35.50 57.14,36.76 57.74,38.74 56.04,37.56 54.33,38.74 54.93,36.76 53.28,35.50 55.36,35.46" fill="#fff"/><polygon points="63.96,33.50 64.64,35.46 66.72,35.50 65.07,36.76 65.67,38.74 63.96,37.56 62.26,38.74 62.86,36.76 61.20,35.50 63.28,35.46" fill="#fff"/><polygon points="71.27,36.58 71.95,38.54 74.02,38.58 72.37,39.83 72.97,41.82 71.27,40.64 69.56,41.82 70.16,39.83 68.51,38.58 70.58,38.54" fill="#fff"/><polygon points="76.80,42.25 77.48,44.21 79.56,44.25 77.90,45.51 78.51,47.50 76.80,46.31 75.10,47.50 75.70,45.51 74.04,44.25 76.12,44.21" fill="#fff"/><polygon points="79.70,49.63 80.38,51.59 82.45,51.63 80.80,52.89 81.40,54.87 79.70,53.69 77.99,54.87 78.59,52.89 76.94,51.63 79.01,51.59" fill="#fff"/></svg>
+      <h2 id="veTitle">SOLO VENDEMOS<br>EN <span>VENEZUELA</span></h2>
+      <p>No realizamos ventas ni envíos a otros países. Los pedidos para entregar fuera de Venezuela no serán atendidos.</p>
+      <button type="button" class="btn-primary" id="veAccept">ENTENDIDO</button>
+    </div>
   </div>
 </div>
 
-<!-- ============ APP PRINCIPAL ============ -->
-<div class="admin-app" id="adminApp" hidden>
-  <header class="admin-header">
-    <span class="admin-brand">Mayoristas <span>de Perfumes Venezuela</span> <em>ADMIN</em></span>
-    <div class="admin-header-right">
-      <a href="../index.html" target="_blank" class="btn-ghost">Ver sitio ↗</a>
-      <span id="adminUserEmail"></span>
-      <button id="logoutBtn" class="btn-ghost">Cerrar sesión</button>
-    </div>
-  </header>
+<!-- ============ CINTA SUPERIOR (categorías en movimiento) ============ -->
+<div class="brand-marquee">
+  <div class="marquee-track" id="marqueeTrack"><!-- filled by JS --></div>
+</div>
 
-  <nav class="admin-tabs">
-    <button class="admin-tab active" data-tab="summary">Resumen</button>
-    <button class="admin-tab" data-tab="products">Productos</button>
-    <button class="admin-tab" data-tab="bulk">Carga masiva</button>
-    <button class="admin-tab" data-tab="orders">Pedidos <span class="tab-badge" id="ordersBadge" hidden>0</span></button>
-    <button class="admin-tab" data-tab="clients">Clientes</button>
-    <button class="admin-tab" data-tab="banners">Banners</button>
-    <button class="admin-tab" data-tab="advisors">Asesoras</button>
-    <button class="admin-tab" data-tab="settings">Ajustes</button>
-  </nav>
+<!-- ============ HEADER ============ -->
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="brand-mark">
+      <img src="https://lgslddmymksbukdcmdpd.supabase.co/storage/v1/object/public/product-images/logo-mayoristas-1790878036617.png" alt="Mayoristas de Perfumes Venezuela" class="brand-logo-img">
+    </a>
 
-  <main class="admin-main">
-
-    <!-- ============ TAB: RESUMEN ============ -->
-    <div class="admin-tab-panel" id="tabSummary">
-      <div class="stats-grid">
-        <div class="stat-card"><strong id="statTotalProducts">0</strong><span>Productos</span></div>
-        <div class="stat-card"><strong id="statAvailProducts">0</strong><span>Disponibles</span></div>
-        <div class="stat-card"><strong id="statOutProducts">0</strong><span>Agotados</span></div>
-        <div class="stat-card"><strong id="statNewOrders">0</strong><span>Pedidos nuevos</span></div>
-        <div class="stat-card stat-money" id="salesTodayCard" hidden>
-          <strong id="statSalesToday">$0.00</strong>
-          <span>Ventas de hoy · pedidos Tomado y Entregado</span>
-          <small id="statSalesTodayDetail"></small>
-        </div>
-      </div>
-      <div class="months-card" id="monthsCard" hidden>
-        <h3>Ventas por mes</h3>
-        <div class="table-wrap">
-          <table class="admin-table">
-            <thead><tr><th>Mes</th><th>Pedidos</th><th>Total de los pedidos</th><th>Vendido (Tomado + Entregado)</th></tr></thead>
-            <tbody id="monthsBody"></tbody>
-          </table>
-        </div>
-        <small class="field-hint">Los pedidos cancelados no se cuentan. El mes se cuenta en hora de Venezuela.</small>
-      </div>
+    <div class="search-wrap">
+      <span class="search-icon">⚲</span>
+      <input type="text" id="searchInput" placeholder="Buscar por nombre, marca o referencia…">
+      <button class="search-clear" id="searchClear" aria-label="Limpiar búsqueda" hidden>✕</button>
     </div>
 
-    <!-- ============ TAB: PRODUCTOS ============ -->
-    <div class="admin-tab-panel" id="tabProducts" hidden>
-      <section class="admin-toolbar">
-        <input type="text" id="adminSearch" placeholder="Buscar producto…">
-        <label class="no-photo-toggle">
-          <input type="checkbox" id="filterNoPhoto">
-          <span>Solo sin foto</span>
-          <span class="count-pill" id="noPhotoCount">0</span>
-        </label>
-        <div class="admin-actions">
-          <button id="newProductBtn" class="btn-primary">+ Nuevo producto</button>
+    <div class="header-actions">
+      <button type="button" class="client-btn" id="clientBtn">Soy cliente</button>
+      <button class="icon-btn" id="cartBtn" aria-label="Ver carrito">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M3 4H5L5.4 6M5.4 6H20L18 13H7M5.4 6L6.8 14H18M18 14L19 4M9 19a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="cart-badge" id="cartBadge" hidden>0</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ BARRA DE CATEGORÍAS ============ -->
+<nav class="category-nav" id="categoryNav" aria-label="Categorías"><!-- filled by JS --></nav>
+<div class="advisor-pill-wrap" id="advisorPillWrap" hidden></div>
+
+
+<main>
+  <!-- ============ BANNER / HERO ============ -->
+  <section class="banner-carousel" id="bannerCarousel" hidden>
+    <div class="banner-track" id="bannerTrack"><!-- slides por JS --></div>
+    <button class="banner-nav prev" id="bannerPrev" aria-label="Slide anterior">‹</button>
+    <button class="banner-nav next" id="bannerNext" aria-label="Slide siguiente">›</button>
+    <div class="banner-dots" id="bannerDots"></div>
+  </section>
+
+  <!-- ============ FRANJA DE CONFIANZA (los textos se completan solos con los datos reales de la tienda) ============ -->
+  <section class="trust-strip" id="trustStrip" aria-label="Por qué comprar con nosotros">
+    <div class="trust-item">
+      <svg class="trust-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7.5" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>
+      <div class="trust-text"><strong>Envíos a toda Venezuela</strong><span>Envío nacional, delivery y pickup</span></div>
+    </div>
+    <div class="trust-item">
+      <svg class="trust-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.2-7 10-4-1.8-7-5.4-7-10V6z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/></svg>
+      <div class="trust-text"><strong>Pago protegido</strong><span id="trustPay">Pago Móvil, Binance o efectivo</span></div>
+    </div>
+    <div class="trust-item">
+      <svg class="trust-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>
+      <div class="trust-text"><strong>Atención por WhatsApp</strong><em class="trust-chip" id="trustChatChip" hidden></em><span id="trustChat">Asesoras que te acompañan en tu pedido</span></div>
+    </div>
+    <div class="trust-item">
+      <svg class="trust-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8L12 4l8.5 4v8L12 20l-8.5-4z"/><path d="M3.5 8L12 12l8.5-4M12 12v8"/></svg>
+      <div class="trust-text"><strong>Desde 12 perfumes</strong><span id="trustMin">Surtido a tu gusto, de cualquier referencia</span></div>
+    </div>
+  </section>
+
+  <!-- Espacio de categorías (se ve mientras no haya banners cargados en el admin) -->
+  <section class="category-tiles" id="categoryTiles" hidden></section>
+
+  <!-- ============ DESTACADOS ============ -->
+  <section class="featured-section" id="featuredSection" hidden>
+    <h2 class="featured-title">Destacados</h2>
+    <div class="featured-scroll-wrap">
+      <button class="scroll-arrow prev" aria-label="Ver anteriores">‹</button>
+      <div class="featured-scroll" id="featuredScroll"><!-- filled by JS --></div>
+      <button class="scroll-arrow next" aria-label="Ver siguientes">›</button>
+    </div>
+  </section>
+
+  <!-- ============ FILTROS ============ -->
+  <div class="filter-bar">
+    <div class="filter-chips" id="categoryChips"><!-- filled by JS --></div>
+    <div class="filter-right">
+      <select id="brandSelect" class="filter-select">
+        <option value="">Todas las marcas</option>
+      </select>
+      <select id="sortSelect" class="filter-select">
+        <option value="relevance">Orden: catálogo</option>
+        <option value="price-asc">Precio: menor a mayor</option>
+        <option value="price-desc">Precio: mayor a menor</option>
+        <option value="name-asc">Nombre: A-Z</option>
+      </select>
+    </div>
+  </div>
+
+  <p class="results-count" id="resultsCount"></p>
+
+  <!-- ============ GRID DE PRODUCTOS ============ -->
+  <section class="product-grid" id="productGrid"><!-- filled by JS --></section>
+  <p class="empty-state" id="emptyState" hidden>No encontramos productos con esos filtros.</p>
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <img src="https://lgslddmymksbukdcmdpd.supabase.co/storage/v1/object/public/product-images/logo-mayoristas-1790878036617.png" alt="Mayoristas de Perfumes Venezuela" class="footer-logo-img">
+    </div>
+    <p class="footer-note">Fragancias al mayor y al detal. Pedidos por WhatsApp.</p>
+    <div class="footer-social">
+      <a href="https://instagram.com/mayoristasdeperfumesven" target="_blank" rel="noopener" class="footer-social-btn" aria-label="Instagram">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.8"/><circle cx="17.3" cy="6.7" r="1.1" fill="currentColor"/></svg>
+        <span>Instagram</span>
+      </a>
+      <a href="https://www.tiktok.com/@mayoristasdeperfumesvzla" target="_blank" rel="noopener" class="footer-social-btn" aria-label="TikTok">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 3c.4 2.3 2 4 4.5 4.2V10c-1.6.1-3.1-.4-4.5-1.3v6.6a5.6 5.6 0 1 1-5.6-5.6c.3 0 .6 0 .9.1v2.8a2.8 2.8 0 1 0 2 2.7V3h2.7z" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>
+        <span>TikTok</span>
+      </a>
+      <button type="button" id="footerWhatsappBtn" class="footer-social-btn" aria-label="WhatsApp">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a10 10 0 00-8.6 15L2 22l5.2-1.4A10 10 0 1012 2z" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 8.3c.2-.5.5-.5.7-.5h.5c.2 0 .4 0 .6.4.2.5.6 1.5.6 1.6.1.1.1.3 0 .4-.1.2-.1.3-.3.4-.1.2-.3.3-.4.5-.1.1-.3.3-.1.6.2.3.8 1.3 1.8 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1.2-.2.7-.8.9-1 .2-.2.3-.2.6-.1.2.1 1.5.7 1.8.8.3.1.4.2.5.3.1.2.1.9-.2 1.6-.3.7-1.6 1.4-2.2 1.4-.6.1-1.1.1-3.7-1.5-3.1-1.9-5-5.2-5.2-5.5-.1-.2-1-1.4-1-2.6 0-1.2.6-1.8.8-2.1z" fill="currentColor"/></svg>
+        <span>WhatsApp</span>
+      </button>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ MODAL: VISTA RÁPIDA DE PRODUCTO ============ -->
+<div class="modal-overlay" id="modalOverlay" hidden>
+  <div class="modal-card product-modal">
+    <button class="modal-close" id="modalClose" aria-label="Cerrar">✕</button>
+    <div class="modal-media">
+      <img src="" alt="" id="modalImage">
+      <span class="modal-stamp" id="modalStamp" hidden>Agotado</span>
+    </div>
+    <div class="modal-body">
+      <p class="modal-brand" id="modalBrand"></p>
+      <h2 class="modal-name" id="modalName"></h2>
+      <p class="modal-ref" id="modalRef"></p>
+      <div class="modal-price-row">
+        <span class="modal-price" id="modalPrice"></span>
+        <span class="modal-price-old" id="modalPriceOld" hidden></span>
+      </div>
+      <p class="modal-min-qty-note" id="modalMinQtyNote" hidden></p>
+      <div class="modal-cart-row">
+        <div class="qty-stepper">
+          <button type="button" id="modalQtyMinus" aria-label="Restar">−</button>
+          <span id="modalQty">1</span>
+          <button type="button" id="modalQtyPlus" aria-label="Sumar">+</button>
         </div>
-      </section>
-      <div class="table-wrap">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th></th>
-              <th>Nombre</th>
-              <th>Categoría</th>
-              <th>Precio</th>
-              <th>Mín.</th>
-              <th>Disponible</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="adminTableBody"></tbody>
-        </table>
+        <button class="btn-add-cart" id="modalAddCart">Agregar al carrito</button>
+      </div>
+      <div class="modal-description" id="modalDescription" hidden>
+        <h3>Detalle</h3>
+        <p id="modalDescriptionText"></p>
       </div>
     </div>
+  </div>
+</div>
 
-    <!-- ============ TAB: PEDIDOS ============ -->
-    <div class="admin-tab-panel" id="tabOrders" hidden>
-      <div class="my-link-box" id="myLinkBox" hidden>
-        <div class="my-link-text"><strong>Tu link personal</strong><span>Envíaselo a tus clientes: cuando lo abren, el pedido te llega a ti.</span></div>
-        <div class="my-link-row"><input type="text" id="myLinkUrl" readonly><button type="button" class="btn-primary" id="copyMyLinkBtn">Copiar</button></div>
+<!-- ============ CARRITO (panel lateral) ============ -->
+<div class="cart-overlay" id="cartOverlay" hidden>
+  <div class="cart-panel">
+    <div class="cart-header">
+      <h2>Tu carrito</h2>
+      <button class="modal-close" id="cartClose" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="cart-items" id="cartItems"><!-- filled by JS --></div>
+    <p class="cart-min-progress" id="cartMinProgress" hidden></p>
+    <p class="cart-empty" id="cartEmpty" hidden>Tu carrito está vacío.</p>
+    <div class="cart-footer" id="cartFooter" hidden>
+      <div class="cart-total-row">
+        <span>Total</span>
+        <strong id="cartTotal">$0.00</strong>
       </div>
-      <div class="orders-toolbar">
-        <label class="orders-month"><span>Mes</span><select id="ordersMonth"></select></label>
-        <span class="orders-count" id="ordersMonthInfo"></span>
-        <div class="orders-actions">
-          <button type="button" class="btn-primary" id="ordersExportMonthBtn">⬇ Descargar este mes (Excel)</button>
-          <button type="button" class="btn-ghost" id="ordersExportAllBtn">⬇ Todo el historial</button>
+      <button class="btn-primary btn-block" id="checkoutBtn">Continuar pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CHECKOUT ============ -->
+<!-- Ventana al elegir "Pagar después" -->
+<div class="modal-overlay paylater-overlay" id="payLaterOverlay" hidden>
+  <div class="paylater-card" role="dialog" aria-modal="true" aria-labelledby="payLaterTitle">
+    <div class="paylater-icon">⏳</div>
+    <h3 id="payLaterTitle">Los pedidos que van pagos salen antes</h3>
+    <p>Puedes dejar tu pedido registrado y pagar después, pero <strong>los pedidos con pago se atienden primero</strong>.</p>
+    <div class="paylater-actions">
+      <button type="button" class="btn-primary" id="payLaterNow">Prefiero pagar ahora</button>
+      <button type="button" class="paylater-ok" id="payLaterOk">Entendido, pagar después</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SOY CLIENTE: ver mis pedidos ============ -->
+<div class="modal-overlay" id="clientOverlay" hidden>
+  <div class="modal-card client-card" role="dialog" aria-modal="true" aria-labelledby="clientTitle">
+    <button class="modal-close" id="clientClose" aria-label="Cerrar">✕</button>
+    <h2 id="clientTitle">Mis pedidos</h2>
+    <p class="checkout-sub">Escribe tu cédula y tu teléfono (los mismos de tu pedido) para ver tu historial.</p>
+    <form id="clientForm" class="client-form">
+      <label><span>Cédula o RIF <em class="opt">(solo números)</em></span><input type="text" id="clientCedulaNum" required inputmode="numeric" maxlength="15" autocomplete="off" placeholder="Ej: 12345678"></label>
+      <label><span>Teléfono</span><input type="tel" id="clientPhone" required placeholder="Ej: 0412 1234567"></label>
+      <button class="btn-primary btn-block" type="submit" id="clientSubmit">Ver mis pedidos</button>
+      <p class="client-msg" id="clientMsg" hidden></p>
+    </form>
+    <div class="client-results" id="clientResults" hidden></div>
+    <p class="client-privacy">Solo mostramos tus productos, totales y estado. Nunca mostramos direcciones ni teléfonos.</p>
+  </div>
+</div>
+
+<div class="modal-overlay" id="checkoutOverlay" hidden>
+  <div class="modal-card checkout-card">
+    <button class="modal-close" id="checkoutClose" aria-label="Cerrar">✕</button>
+    <h2>Completa tu pedido</h2>
+    <p class="checkout-sub">Con estos datos armamos tu pedido y te contactamos por WhatsApp para confirmar.</p>
+
+    <div class="advisor-step" id="advisorStep">
+      <!-- el cliente ya tenía una asesora recordada: se le pide confirmar (nunca se asigna en silencio) -->
+      <div class="advisor-confirm" id="advisorConfirm" hidden>
+        <p class="advisor-question">La última vez te atendió <strong id="advisorConfirmName"></strong>. ¿Quieres seguir con ella?</p>
+        <div class="advisor-yesno">
+          <button type="button" id="advisorConfirmYes">Sí, con ella</button>
+          <button type="button" id="advisorConfirmOther">Elegir otra asesora</button>
         </div>
       </div>
-      <div class="orders-list" id="ordersList"></div>
-      <p class="admin-empty" id="ordersEmpty" hidden>Todavía no hay pedidos.</p>
-    </div>
-
-    <!-- ============ TAB: CLIENTES ============ -->
-    <div class="admin-tab-panel" id="tabClients" hidden>
-      <div class="clients-toolbar">
-        <input type="search" id="clientsSearch" placeholder="Buscar por nombre, cédula o teléfono…">
-        <button type="button" class="btn-primary" id="clientsExportBtn">⬇ Descargar clientes en Excel</button>
-      </div>
-      <p class="banners-hint" id="clientsSummary"></p>
-      <div class="table-wrap">
-        <table class="admin-table clients-table">
-          <thead><tr><th>Cliente</th><th>Cédula</th><th>Teléfono</th><th>Pedidos</th><th>Total</th><th>Último pedido</th><th>Asesora(s)</th></tr></thead>
-          <tbody id="clientsBody"></tbody>
-        </table>
-      </div>
-      <p class="admin-empty" id="clientsEmpty" hidden>Todavía no hay clientes.</p>
-    </div>
-
-    <!-- ============ TAB: CARGA MASIVA ============ -->
-    <div class="admin-tab-panel" id="tabBulk" hidden>
-      <div class="bulk-card">
-        <h2>Carga masiva de productos</h2>
-        <p class="bulk-lead">Llena la plantilla de Excel con todos tus productos y súbela aquí: se crean los nuevos y se actualizan los que ya existen (por <strong>referencia</strong> o por nombre). Nada se guarda hasta que presiones <strong>Importar</strong>.</p>
-
-        <div class="bulk-step">
-          <span class="bulk-num">1</span>
-          <div>
-            <h3>Descarga la plantilla</h3>
-            <p>Trae listas desplegables, instrucciones y un ejemplo. Si quieres cambiar precios en masa, descarga tu catálogo actual, edítalo y vuelve a subirlo.</p>
-            <div class="bulk-buttons">
-              <a class="btn-primary bulk-link" href="plantilla_carga_productos.xlsx" download>⬇ Plantilla vacía</a>
-              <button type="button" class="bulk-secondary" id="bulkExportBtn">⬇ Mi catálogo actual</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="bulk-step">
-          <span class="bulk-num">2</span>
-          <div>
-            <h3>Sube tu Excel</h3>
-            <input type="file" id="bulkFile" accept=".xlsx,.xls,.csv">
-          </div>
-        </div>
-
-        <div class="bulk-step">
-          <span class="bulk-num">3</span>
-          <div>
-            <h3>Sube las fotos <span class="bulk-opt">(opcional)</span></h3>
-            <p>Selecciona todas juntas. Se emparejan por el nombre del archivo con la columna «Foto» (o con la Referencia / el Nombre) y se reducen solas para que la tienda cargue rápido. Formatos: JPG, PNG o WEBP.</p>
-            <input type="file" id="bulkPhotos" accept="image/jpeg,image/png,image/webp" multiple>
-            <p class="bulk-photo-info" id="bulkPhotoInfo">Aún no has elegido fotos.</p>
-          </div>
-        </div>
-
-        <div class="bulk-step">
-          <span class="bulk-num">4</span>
-          <div style="flex:1; min-width:0">
-            <h3>Revisa y confirma</h3>
-            <div class="bulk-summary" id="bulkSummary"></div>
-            <div class="table-wrap bulk-table-wrap" id="bulkPreviewWrap" hidden>
-              <table class="admin-table bulk-table">
-                <thead><tr><th>Fila</th><th>Acción</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Mín.</th><th>Foto</th><th>Estado</th></tr></thead>
-                <tbody id="bulkPreviewBody"></tbody>
-              </table>
-            </div>
-            <div class="bulk-actions">
-              <button type="button" class="btn-primary" id="bulkImportBtn" disabled>Importar</button>
-              <progress id="bulkProgress" value="0" max="1" hidden></progress>
-              <span id="bulkStatus" class="bulk-status"></span>
-            </div>
-            <div id="bulkResult"></div>
-          </div>
+      <div class="advisor-ask" id="advisorAsk">
+        <p class="advisor-question">¿Ya tienes una asesora de ventas?</p>
+        <div class="advisor-yesno">
+          <button type="button" id="advisorYesBtn">Sí, ya tengo una</button>
+          <button type="button" id="advisorNoBtn">No, asígname una</button>
         </div>
       </div>
+      <div class="advisor-list" id="advisorList" hidden><!-- filled by JS --></div>
     </div>
 
-    <!-- ============ TAB: BANNERS ============ -->
-    <div class="admin-tab-panel" id="tabBanners" hidden>
-      <section class="admin-toolbar">
-        <p class="banners-hint">Los banners aparecen en el carrusel de la portada, en el orden que elijas.</p>
-        <button id="newBannerBtn" class="btn-primary">+ Nuevo banner</button>
-      </section>
-      <div class="banners-list" id="bannersList"></div>
-    </div>
-
-    <!-- ============ TAB: ASESORAS ============ -->
-    <div class="admin-tab-panel" id="tabAdvisors" hidden>
-      <section class="admin-toolbar">
-        <p class="banners-hint">Las asesoras activas reciben clientes por turnos cuando alguien pide "asígname una". El orden de abajo es el orden del turno. Las asesoras marcadas 🔒 están ocultas (clientes VIP): no reciben turnos y solo se llega a ellas con su link secreto.</p>
-        <button id="newAdvisorBtn" class="btn-primary">+ Nueva asesora</button>
-      </section>
-      <div class="advisor-links" id="advisorLinks"></div>
-      <div class="table-wrap">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th></th>
-              <th>Nombre</th>
-              <th>WhatsApp</th>
-              <th>Orden</th>
-              <th>Activa</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="advisorsTableBody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ============ TAB: AJUSTES ============ -->
-    <div class="admin-tab-panel" id="tabSettings" hidden>
-      <form id="settingsForm" class="settings-form">
-        <h2>Textos de la portada</h2>
+    <form id="checkoutForm" class="checkout-form" hidden>
+      <p class="advisor-chosen-tag" id="advisorChosenTag" hidden></p>
+      <div class="checkout-fields-scroll">
         <label>
-          <span>Texto pequeño (arriba del título)</span>
-          <input type="text" id="settingsEyebrow">
+          <span>Nombre completo *</span>
+          <input type="text" id="custName" required placeholder="Ej: María Pérez">
         </label>
         <label>
-          <span>Título principal</span>
-          <input type="text" id="settingsHeroTitle" placeholder="Deja vacío para usar el de siempre">
+          <span>Cédula o RIF * <em class="opt">(solo números)</em></span>
+          <input type="text" id="custCedulaNum" required inputmode="numeric" maxlength="15" autocomplete="off" placeholder="Ej: 12345678">
+          <small class="field-hint">Sin letras, puntos ni guiones. Solo la ve tu asesora; sirve para identificarte y poder ver tus pedidos.</small>
         </label>
-        <label>
-          <span>Subtítulo</span>
-          <textarea id="settingsHeroSubtitle" rows="2"></textarea>
-        </label>
-
-        <h2>Tasa del dólar</h2>
-        <label>
-          <span>Bs por $1</span>
-          <input type="number" id="settingsExchangeRate" step="0.01" min="0">
-        </label>
-
-        <label>
-          <span>Código de bodega en PosGold</span>
-          <input type="text" id="settingsPosgoldBodega" placeholder="01">
-          <small class="field-hint">Se escribe en la columna «cod_bodega» del Excel que se descarga de cada pedido para PosGold.</small>
-        </label>
-
-        <h2>Datos de pago</h2>
-        <div class="form-row three">
-          <label><span>Pago Móvil — Teléfono</span><input type="text" id="settingsPagoMovilPhone"></label>
-          <label><span>Pago Móvil — Cédula/RIF</span><input type="text" id="settingsPagoMovilCedula"></label>
-          <label><span>Pago Móvil — Banco</span><input type="text" id="settingsPagoMovilBank"></label>
-        </div>
         <div class="form-row two">
           <label>
-            <span>Binance — ID</span>
-            <input type="text" id="settingsBinanceId" inputmode="numeric" placeholder="Ej: 123456789">
-            <small class="field-hint">Solo el ID (Binance Pay). Por seguridad ya no se guardan nombre ni correo; al guardar se borran los que hubiera.</small>
+            <span>Teléfono *</span>
+            <input type="tel" id="custPhone" required placeholder="Ej: 0412 1234567">
           </label>
-        </div>
-        <div class="form-row two">
           <label>
-            <span>Productos agotados en el catálogo</span>
-            <select id="settingsHideSoldout">
-              <option value="true">Ocultarlos del catálogo</option>
-              <option value="false">Mostrarlos con la etiqueta «Agotado»</option>
-            </select>
+            <span>Ciudad *</span>
+            <input type="text" id="custCity" required placeholder="Ej: Caracas">
           </label>
         </div>
-        <div class="hours-box">
-          <h3 class="hours-title">Horario de atención</h3>
-          <label class="check-row"><input type="checkbox" id="settingsHoursEnabled"> <span>Avisar al cliente, al terminar su pedido, si estamos dentro o fuera de horario</span></label>
-          <table class="hours-table"><tbody id="hoursRows"></tbody></table>
-          <small class="field-hint">Hora de Venezuela. <b>Con horario</b>: se atiende entre esas horas. <b>Virtual limitado</b>: sin hora fija; se le avisa al cliente que se le responde cuando haya una asesora disponible (por ejemplo, los domingos). <b>Cerrado</b>: ese día no se atiende. Fuera de horario, el cliente ve cuándo lo atenderán.</small>
+        <label>
+          <span>Correo (opcional)</span>
+          <input type="email" id="custEmail" placeholder="Ej: maria@ejemplo.com">
+        </label>
+        <label>
+          <span>Método de pago *</span>
+          <select id="custPayment" required>
+            <option value="">Selecciona una opción</option>
+            <option value="Pago móvil">Pago móvil</option>
+            <option value="Binance">Binance</option>
+            <option value="Zelle">Zelle</option>
+            <option value="Efectivo">Efectivo</option>
+            <option value="Pagar después">Pagar después</option>
+          </select>
+        </label>
+        <div class="payment-details-box" id="paymentDetailsBox" hidden></div>
+        <label id="payRefWrap" hidden>
+          <span>Número de referencia del pago *</span>
+          <input type="text" id="custPayRef" placeholder="Ej: 123456">
+          <small class="field-hint">Si aún no has pagado, elige «Pagar después».</small>
+        </label>
+        <label id="payProofWrap" hidden>
+          <span>Comprobante de pago <em class="opt">(opcional)</em></span>
+          <input type="file" id="custPayProof" accept="image/*">
+          <small class="field-hint">Una foto o captura de tu pago. Solo la ve tu asesora.</small>
+        </label>
+        <div class="pay-later-note" id="payLaterNote" hidden>
+          <strong>Los pedidos que van pagos salen antes.</strong>
+          Puedes pagar después: tu pedido queda registrado y, cuando pagues, avísale a tu asesora por WhatsApp.
         </div>
-        <div class="form-row two">
-          <label><span>Zelle — Correo</span><input type="text" id="settingsZelleEmail"></label>
-          <label><span>Zelle — Titular</span><input type="text" id="settingsZelleHolder"></label>
-        </div>
 
-        <button type="submit" class="btn-primary" id="saveSettingsBtn">Guardar ajustes</button>
-        <p class="form-message" id="settingsMessage" hidden></p>
-      </form>
-    </div>
-
-  </main>
-</div>
-
-<!-- ============ MODAL: PRODUCTO ============ -->
-<div class="modal-overlay" id="productModalOverlay" hidden>
-  <div class="modal-card">
-    <button class="modal-close" id="productModalClose">✕</button>
-    <h2 id="productModalTitle">Nuevo producto</h2>
-    <form id="productForm" class="product-form">
-      <input type="hidden" id="fieldId">
-      <label><span>Nombre *</span><input type="text" id="fieldName" required></label>
-      <div class="form-row two">
-        <label><span>Marca</span><input type="text" id="fieldBrand"></label>
-        <label><span>Categoría *</span><input type="text" id="fieldCategory" required list="categoryOptions"><datalist id="categoryOptions"></datalist></label>
-      </div>
-      <div class="form-row two">
-        <label><span>Referencia/SKU</span><input type="text" id="fieldRef"></label>
-        <label><span>Código en PosGold <em class="opt">(opcional)</em></span><input type="text" id="fieldPosgold" placeholder="Ej: 002"></label>
-      </div>
-      <div class="form-row two">
-        <label><span>Disponible</span>
-          <select id="fieldAvail"><option value="true">Sí</option><option value="false">No</option></select>
+        <label>
+          <span>Método de entrega *</span>
+          <select id="custDelivery" required>
+            <option value="">Selecciona una opción</option>
+            <option value="Delivery">Delivery</option>
+            <option value="Pickup">Retiro en punto físico</option>
+            <option value="Envío nacional">Envío nacional</option>
+          </select>
+        </label>
+        <label id="addressField" hidden>
+          <span>Dirección de entrega *</span>
+          <textarea id="custAddress" rows="2" placeholder="Referencia, urbanización, calle, casa/apto…"></textarea>
         </label>
       </div>
-      <div class="form-row three">
-        <label><span>Precio *</span><input type="number" id="fieldMayor" step="0.01" min="0" required></label>
-        <label><span>Precio Oferta</span><input type="number" id="fieldOffer" step="0.01" min="0"></label>
-        <label><span>Cantidad mínima *</span><input type="number" id="fieldMinQty" step="1" min="1" value="12" required></label>
-      </div>
-      <label><span>Stock (opcional)</span><input type="number" id="fieldStock" step="1" min="0"></label>
-      <label><span>Descripción / contenido (la ve el cliente)</span><textarea id="fieldNote" rows="5" placeholder="Para una caja: escribe un perfume por línea"></textarea></label>
-      <label class="checkbox-label">
-        <input type="checkbox" id="fieldFeatured">
-        <span>Destacado (aparece en el carrusel de la portada)</span>
+      <label class="check-inline">
+        <input type="checkbox" id="custHideName">
+        <span>No mostrar mi nombre en los avisos de compras recientes</span>
       </label>
-      <label><span>Imagen</span><input type="file" id="fieldImageFile" accept="image/*"></label>
-      <img id="fieldImagePreview" class="image-preview" hidden>
-
-      <div class="form-actions">
-        <button type="button" class="btn-danger" id="deleteProductBtn" hidden>Eliminar</button>
-        <div class="form-actions-right">
-          <button type="button" id="cancelProductBtn">Cancelar</button>
-          <button type="submit" id="saveProductBtn" class="btn-primary">Guardar</button>
-        </div>
-      </div>
-      <p class="form-message" id="productFormMessage" hidden></p>
+      <button class="btn-primary btn-block" id="submitOrderBtn" type="submit">Enviar pedido por WhatsApp</button>
+      <p class="checkout-error" id="checkoutError" hidden></p>
     </form>
-  </div>
-</div>
 
-<!-- ============ MODAL: ASESORA ============ -->
-<div class="modal-overlay" id="advisorModalOverlay" hidden>
-  <div class="modal-card">
-    <button class="modal-close" id="advisorModalClose">✕</button>
-    <h2 id="advisorModalTitle">Nueva asesora</h2>
-    <form id="advisorForm" class="product-form">
-      <input type="hidden" id="advisorFieldId">
-      <label><span>Nombre *</span><input type="text" id="advisorFieldName" required></label>
-      <label><span>WhatsApp (ej: 584121234567) *</span><input type="text" id="advisorFieldPhone" required></label>
-      <label><span>Foto</span><input type="file" id="advisorFieldImageFile" accept="image/*"></label>
-      <img id="advisorFieldImagePreview" class="image-preview" hidden>
-      <div class="form-row two">
-        <label><span>Orden del turno</span><input type="number" id="advisorFieldSort" value="0"></label>
-        <label class="checkbox-label"><input type="checkbox" id="advisorFieldActive" checked><span>Activa</span></label>
-      </div>
-      <label class="checkbox-label vip-check"><input type="checkbox" id="advisorFieldHidden"><span>🔒 <b>Oculta (clientes VIP)</b>: no sale en la lista de la tienda, no entra en el reparto por turnos y no se puede escoger. Solo se llega a ella con su link secreto.</span></label>
-      <div class="vip-box" id="advisorVipBox" hidden>
-        <span class="field-label">Link VIP (solo para quien deba usarlo; no lo publiques)</span>
-        <input type="text" id="advisorVipLink" readonly>
-        <div class="vip-actions"><button type="button" class="posgold-btn" id="advisorVipCopy">Copiar link</button><button type="button" id="advisorVipRenew">Renovar link</button></div>
-        <small class="field-hint">Si renuevas el link, el anterior deja de funcionar.</small>
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn-danger" id="deleteAdvisorBtn" hidden>Eliminar</button>
-        <div class="form-actions-right">
-          <button type="button" id="cancelAdvisorBtn">Cancelar</button>
-          <button type="submit" id="saveAdvisorBtn" class="btn-primary">Guardar</button>
-        </div>
-      </div>
-      <p class="form-message" id="advisorFormMessage" hidden></p>
-    </form>
-  </div>
-</div>
-
-<!-- ============ MODAL: BANNER ============ -->
-<div class="modal-overlay" id="bannerModalOverlay" hidden>
-  <div class="modal-card">
-    <button class="modal-close" id="bannerModalClose">✕</button>
-    <h2 id="bannerModalTitle">Nuevo banner</h2>
-    <form id="bannerForm" class="product-form">
-      <input type="hidden" id="bannerFieldId">
-      <label><span>Título</span><input type="text" id="bannerFieldTitle"></label>
-      <label><span>Subtítulo</span><input type="text" id="bannerFieldSubtitle"></label>
-      <label><span>Imagen</span><input type="file" id="bannerFieldImageFile" accept="image/*"></label>
-      <img id="bannerFieldImagePreview" class="image-preview" hidden>
-      <label><span>Imagen para celular <em class="opt">(opcional)</em></span><input type="file" id="bannerFieldMobileFile" accept="image/*"></label>
-      <img id="bannerFieldMobilePreview" class="image-preview" hidden>
-      <button type="button" class="link-btn" id="bannerRemoveMobileBtn" hidden>✕ Quitar la imagen de celular</button>
-      <p class="banner-size-hint">Con la imagen de celular, el banner se ve distinto en el teléfono (por ejemplo más cuadrado, <strong>1080 × 540 px</strong>). Si no la subes, el celular usa la imagen normal. Las imágenes se reducen solas al subirlas para que la tienda cargue rápido.</p>
-      <label><span>Al hacer clic en el banner, ir a</span>
-        <select id="bannerFieldDest">
-          <option value="">Sin enlace</option>
-          <option value="categoria:Perfumes Femeninos">Dama (perfumes femeninos)</option>
-          <option value="categoria:Perfumes Masculinos">Caballero (perfumes masculinos)</option>
-          <option value="categoria:Unisex">Unisex</option>
-          <option value="categoria:Cajas / Combos">Cajas / Combos</option>
-          <option value="categoria:Todas">Ver todo el catálogo</option>
-          <option value="custom">Otro enlace (URL)…</option>
-        </select>
-      </label>
-      <label id="bannerCustomLinkWrap" hidden><span>Enlace (URL)</span><input type="text" id="bannerFieldLink" placeholder="https://…"></label>
-      <label><span>Texto del botón (opcional)</span><input type="text" id="bannerFieldButtonText" placeholder="Ver más"></label>
-      <p class="banner-size-hint"><strong>Si tu imagen ya trae el texto, deja Título y Subtítulo vacíos</strong>: el banner se verá completo, sin recortes ni velo oscuro, y todo el banner será el botón. Tamaño recomendado: 1600 × 500 px (otras medidas también se ven completas).</p>
-      <div class="form-row two">
-        <label><span>Orden</span><input type="number" id="bannerFieldSort" value="0"></label>
-        <label class="checkbox-label"><input type="checkbox" id="bannerFieldActive" checked><span>Activo</span></label>
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn-danger" id="deleteBannerBtn" hidden>Eliminar</button>
-        <div class="form-actions-right">
-          <button type="button" id="cancelBannerBtn">Cancelar</button>
-          <button type="submit" id="saveBannerBtn" class="btn-primary">Guardar</button>
-        </div>
-      </div>
-      <p class="form-message" id="bannerFormMessage" hidden></p>
-    </form>
+    <div class="checkout-success" id="checkoutSuccess" hidden>
+      <h3>¡Pedido enviado! 🎉</h3>
+      <p id="successLead">Te vamos a escribir por WhatsApp para confirmar tu pedido.</p>
+      <p class="success-hours" id="successHours" hidden></p>
+      <p class="success-schedule" id="successSchedule" hidden></p>
+      <button class="btn-primary" id="closeSuccessBtn">Cerrar</button>
+    </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../config.js"></script>
-<script src="../supabase-client.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="admin.js"></script>
-<script src="bulk.js"></script>
+<script src="config.js"></script>
+<script src="supabase-client.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
