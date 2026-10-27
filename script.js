@@ -138,6 +138,10 @@
     checkoutError: document.getElementById("checkoutError"),
     checkoutSuccess: document.getElementById("checkoutSuccess"),
     successLead: document.getElementById("successLead"),
+    trustPay: document.getElementById("trustPay"),
+    trustMin: document.getElementById("trustMin"),
+    trustChat: document.getElementById("trustChat"),
+    trustChatChip: document.getElementById("trustChatChip"),
     successHours: document.getElementById("successHours"),
     successSchedule: document.getElementById("successSchedule"),
     closeSuccessBtn: document.getElementById("closeSuccessBtn"),
@@ -839,14 +843,27 @@
   const readAdvisorPref = () => { try { return localStorage.getItem(ADVISOR_PREF_KEY) || ""; } catch (e) { return ""; } };
   const saveAdvisorPref = slug => { try { if (slug) localStorage.setItem(ADVISOR_PREF_KEY, slug); } catch (e) {} };
   const clearAdvisorPref = () => { try { localStorage.removeItem(ADVISOR_PREF_KEY); } catch (e) {} };
+  /* Link VIP de Gerencia (…/?vip=CÓDIGO): lleva a una asesora OCULTA que no sale en ninguna lista. El código se guarda aparte. */
+  const VIP_TOKEN_KEY = "mpv_vip_token";
+  const readVipToken = () => { try { return localStorage.getItem(VIP_TOKEN_KEY) || ""; } catch (e) { return ""; } };
+  const saveVipToken = t => { try { if (t) localStorage.setItem(VIP_TOKEN_KEY, t); } catch (e) {} };
+  const clearVipToken = () => { try { localStorage.removeItem(VIP_TOKEN_KEY); } catch (e) {} };
   let preferredAdvisor = null;
   let prefFromLink = false;       // true solo si el cliente entró AHORA por un link personal
   let advisorHow = "";            // cómo quedó asignada: link · recordada · elegida · turno
 
   function captureAdvisorFromURL() {
     try {
-      const v = slugify(new URLSearchParams(window.location.search).get("asesora"));
-      if (v) { saveAdvisorPref(v); prefFromLink = true; }     // el link manda sobre lo recordado
+      const params = new URLSearchParams(window.location.search);
+      const token = (params.get("vip") || "").trim();
+      if (/^[A-Za-z0-9]{20,64}$/.test(token)) {                 // link VIP: manda sobre lo recordado
+        saveVipToken(token); clearAdvisorPref(); prefFromLink = true;
+        params.delete("vip"); const q = params.toString();      // el código no queda a la vista en la barra de direcciones
+        history.replaceState(null, "", window.location.pathname + (q ? "?" + q : "") + window.location.hash);
+        return;
+      }
+      const v = slugify(params.get("asesora"));
+      if (v) { saveAdvisorPref(v); clearVipToken(); prefFromLink = true; }     // el link manda sobre lo recordado
     } catch (e) {}
   }
   function showAdvisorPill(a) {
@@ -857,9 +874,18 @@
   }
   el.advisorPillWrap.addEventListener("click", e => {
     if (!e.target.closest("[data-forget-advisor]")) return;
-    clearAdvisorPref(); preferredAdvisor = null; showAdvisorPill(null);
+    clearAdvisorPref(); clearVipToken(); preferredAdvisor = null; showAdvisorPill(null);
   });
   async function loadAdvisorPreference() {
+    const vip = readVipToken();
+    if (vip) {                                          // la asesora oculta solo se resuelve con su código exacto
+      try {
+        const { data, error } = await supabaseClient.rpc("vip_advisor", { p_token: vip });
+        const a = !error && Array.isArray(data) ? data[0] : null;
+        if (a) { preferredAdvisor = a; showAdvisorPill(a); return; }
+        if (!error) { clearVipToken(); prefFromLink = false; }   // link renovado o asesora desactivada: se olvida
+      } catch (e) { /* sin el SQL o sin red: la tienda sigue normal */ }
+    }
     const slug = readAdvisorPref();
     if (!slug) return;
     const advisors = await fetchAdvisors();
@@ -1186,6 +1212,7 @@
 
   function paintStore(bannerData) {
     pruneCart();
+    paintTrustStrip();
     renderMarquee();
     renderCategoryNav();
     renderCategoryTiles();
@@ -1456,11 +1483,37 @@
     el.successSchedule.textContent = "Horario de atención (hora de Venezuela): " + resumenHorario(); el.successSchedule.hidden = false;
   }
 
+  /* FRANJA DE CONFIANZA (debajo del banner). Nada está escrito a mano: sale de los Ajustes y del catálogo reales. */
+  function paintTrustChat() {
+    if (!el.trustChat) return;
+    if (siteSettings && siteSettings.hours_enabled === false) { el.trustChatChip.hidden = true; el.trustChat.textContent = "Asesoras que te acompañan en tu pedido"; return; }
+    const e = estadoHorario(), cfg = horarioConfigurado()[ahoraVenezuela().dia] || {};
+    let chip, cls, txt;
+    if (e.estado === "abierto") { chip = "Abierto ahora"; cls = "on"; txt = `Hoy hasta las ${hora12(cfg.close)}`; }
+    else if (e.estado === "virtual") { chip = "Atención virtual"; cls = "virtual"; txt = "Hoy en horarios limitados"; }
+    else { chip = "Fuera de horario"; cls = "off"; txt = e.proxima ? `Te atendemos ${e.proxima}` : "Escríbenos y te respondemos"; }
+    el.trustChat.textContent = txt; el.trustChatChip.textContent = chip; el.trustChatChip.className = "trust-chip " + cls; el.trustChatChip.hidden = false;
+  }
+  function paintTrustStrip() {
+    if (!el.trustPay) return;
+    const s = siteSettings || {}, pagos = [];
+    if (String(s.pago_movil_phone || "").trim()) pagos.push("Pago Móvil");
+    if (String(s.binance_id || "").trim()) pagos.push("Binance");
+    if (String(s.zelle_email || "").trim()) pagos.push("Zelle");
+    pagos.push("efectivo");
+    el.trustPay.textContent = pagos.length > 1 ? pagos.slice(0, -1).join(", ") + " o " + pagos[pagos.length - 1] : pagos[0];
+    const cajas = PRODUCTS.filter(p => (p.min_qty || WHOLESALE_MIN_TOTAL) <= 1 && isEffectivelyAvailable(p)).map(p => Number(p.offer) > 0 ? Number(p.offer) : Number(p.mayor)).filter(x => x > 0);
+    const desde = cajas.length ? Math.min(...cajas) : 0;
+    el.trustMin.textContent = desde ? `Surtido a tu gusto · cajas desde $${Number.isInteger(desde) ? desde : desde.toFixed(2)}` : "Surtido a tu gusto, de cualquier referencia";
+    paintTrustChat();
+  }
+
   async function init() {
     captureAdvisorFromURL();
     initVenezuelaNotice();
     const cached = readCatalogCache();
-    settingsReady = fetchSettings().then(s => { siteSettings = s; applySettings(s); syncPaymentOptions(); return s; });
+    settingsReady = fetchSettings().then(s => { siteSettings = s; applySettings(s); syncPaymentOptions(); paintTrustStrip(); return s; });
+    setInterval(paintTrustChat, 60000);            // «Abierto ahora / Fuera de horario» se actualiza solo
 
     let paintedSig = null;
     if (cached) {                                       // 1) al instante, con la copia guardada
