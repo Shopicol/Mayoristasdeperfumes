@@ -3,433 +3,1068 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin — Mayoristas de Perfumes Venezuela</title>
+<title>Panel de administración — Shopicol Bacano</title>
+<meta name="robots" content="noindex, nofollow">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="admin.css">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;0,9..144,900;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="/admin/admin.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
-<!-- ============ LOGIN ============ -->
+<!-- ============ PANTALLA DE LOGIN ============ -->
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
-    <h1>Mayoristas <span>de Perfumes Venezuela</span></h1>
-    <p class="login-sub">Panel de administración</p>
-    <form id="loginForm">
+    <div class="login-brand">
+      <img src="/logo.png" alt="Shopicol" class="logo-img">
+      <em class="logo-bacano">Bacano</em>
+    </div>
+    <p class="login-eyebrow">✦ Panel de administración ✦</p>
+    <h1>Hola de nuevo</h1>
+    <p class="login-sub">Ingresa con el correo y contraseña que te crearon en el equipo.</p>
+
+    <form id="loginForm" class="login-form">
       <label>
         <span>Correo</span>
-        <input type="email" id="loginEmail" required autocomplete="username">
+        <input type="email" id="loginEmail" required autocomplete="username" placeholder="tucorreo@ejemplo.com">
       </label>
       <label>
         <span>Contraseña</span>
-        <input type="password" id="loginPassword" required autocomplete="current-password">
+        <input type="password" id="loginPassword" required autocomplete="current-password" placeholder="••••••••">
       </label>
-      <button type="submit" id="loginBtn">Entrar</button>
+      <button type="submit" class="btn-primary" id="loginBtn">Entrar al panel</button>
       <p class="login-error" id="loginError" hidden></p>
     </form>
+
+    <div class="login-config-warning" id="configWarning" hidden>
+      <p><strong>⚠ Supabase no está configurado todavía.</strong></p>
+      <p>Pega tu <code>Project URL</code> y tu clave <code>anon public</code> en el archivo
+      <code>config.js</code> (en la carpeta raíz del sitio) y crea al menos un usuario en
+      Supabase → Authentication → Users. Luego recarga esta página.</p>
+    </div>
   </div>
 </div>
 
-<!-- ============ APP PRINCIPAL ============ -->
+<!-- ============ PANEL PRINCIPAL (visible tras login) ============ -->
 <div class="admin-app" id="adminApp" hidden>
+
   <header class="admin-header">
-    <span class="admin-brand">Mayoristas <span>de Perfumes Venezuela</span> <em>ADMIN</em></span>
-    <div class="admin-header-right">
-      <a href="../index.html" target="_blank" class="btn-ghost">Ver sitio ↗</a>
-      <span id="adminUserEmail"></span>
-      <button id="logoutBtn" class="btn-ghost">Cerrar sesión</button>
+    <div class="admin-header-inner">
+      <div class="admin-brand">
+        <img src="/logo.png" alt="Shopicol" class="logo-img admin-logo-img">
+        <em class="logo-bacano">Bacano</em>
+        <span class="admin-tag">Admin</span>
+      </div>
+
+      <div class="admin-header-right">
+        <span class="admin-user" id="adminUserEmail"></span>
+        <a href="/index.html" class="btn-ghost" target="_blank">Ver sitio ↗</a>
+        <button class="btn-ghost" id="backupBtn" title="Descarga un Excel con todos tus productos, pedidos, clientes y ajustes">⬇ Respaldo</button>
+        <button class="btn-ghost" id="logoutBtn">Cerrar sesión</button>
+      </div>
     </div>
   </header>
 
-  <nav class="admin-tabs">
-    <button class="admin-tab active" data-tab="summary">Resumen</button>
-    <button class="admin-tab" data-tab="products">Productos</button>
-    <button class="admin-tab" data-tab="bulk">Carga masiva</button>
-    <button class="admin-tab" data-tab="orders">Pedidos <span class="tab-badge" id="ordersBadge" hidden>0</span></button>
-    <button class="admin-tab" data-tab="clients">Clientes</button>
-    <button class="admin-tab" data-tab="banners">Banners</button>
-    <button class="admin-tab" data-tab="advisors">Asesoras</button>
-    <button class="admin-tab" data-tab="settings">Ajustes</button>
-  </nav>
-
   <main class="admin-main">
+
+    <!-- Pestañas de navegación -->
+    <nav class="admin-tabs">
+      <button class="admin-tab active" data-tab="summary">📊 Resumen</button>
+      <button class="admin-tab" data-tab="products">📦 Productos</button>
+      <button class="admin-tab" data-tab="orders">🧾 Pedidos <span class="tab-badge" id="ordersBadge" hidden>0</span></button>
+      <button class="admin-tab" data-tab="banners">🖼 Banners</button>
+      <button class="admin-tab" data-tab="coupons">🎟 Cupones</button>
+      <button class="admin-tab" data-tab="reviews">⭐ Reseñas <span class="tab-badge" id="reviewsBadge" hidden>0</span></button>
+      <button class="admin-tab" data-tab="restock">🔔 Avísame <span class="tab-badge" id="restockBadge" hidden>0</span></button>
+      <button class="admin-tab" data-tab="brandlogos">🏷️ Logos</button>
+      <button class="admin-tab" data-tab="collections">🗂 Colecciones</button>
+      <button class="admin-tab" data-tab="settings">🎨 Ajustes</button>
+      <button class="admin-tab" data-tab="customers">👥 Clientes</button>
+    </nav>
 
     <!-- ============ TAB: RESUMEN ============ -->
     <div class="admin-tab-panel" id="tabSummary">
-      <div class="stats-grid">
-        <div class="stat-card"><strong id="statTotalProducts">0</strong><span>Productos</span></div>
-        <div class="stat-card"><strong id="statAvailProducts">0</strong><span>Disponibles</span></div>
-        <div class="stat-card"><strong id="statOutProducts">0</strong><span>Agotados</span></div>
-        <div class="stat-card"><strong id="statNewOrders">0</strong><span>Pedidos nuevos</span></div>
-        <div class="stat-card stat-money" id="salesTodayCard" hidden>
-          <strong id="statSalesToday">$0.00</strong>
-          <span>Ventas de hoy · pedidos Tomado y Entregado</span>
-          <small id="statSalesTodayDetail"></small>
+      <section class="summary-cards" id="summaryCards">
+        <div class="summary-card">
+          <span class="summary-card-label">Ventas hoy</span>
+          <strong class="summary-card-value" id="sumToday">$0</strong>
         </div>
-      </div>
-      <div class="months-card" id="monthsCard" hidden>
-        <h3>Ventas por mes</h3>
-        <div class="table-wrap">
-          <table class="admin-table">
-            <thead><tr><th>Mes</th><th>Pedidos</th><th>Total de los pedidos</th><th>Vendido (Tomado + Entregado)</th></tr></thead>
-            <tbody id="monthsBody"></tbody>
-          </table>
+        <div class="summary-card">
+          <span class="summary-card-label">Ventas esta semana</span>
+          <strong class="summary-card-value" id="sumWeek">$0</strong>
         </div>
-        <small class="field-hint">Los pedidos cancelados no se cuentan. El mes se cuenta en hora de Venezuela.</small>
+        <div class="summary-card">
+          <span class="summary-card-label">Ventas este mes</span>
+          <strong class="summary-card-value" id="sumMonth">$0</strong>
+        </div>
+        <div class="summary-card">
+          <span class="summary-card-label">Total histórico</span>
+          <strong class="summary-card-value" id="sumTotal">$0</strong>
+        </div>
+      </section>
+      <p class="summary-note">No incluye pedidos cancelados.</p>
+
+      <div class="summary-grid">
+        <section class="summary-block">
+          <h3>Pedidos por estado</h3>
+          <div id="summaryStatusBars" class="summary-status-bars"><!-- filled by JS --></div>
+        </section>
+
+        <section class="summary-block">
+          <h3>🏆 Productos más vendidos</h3>
+          <ol id="summaryTopProducts" class="summary-top-list"><!-- filled by JS --></ol>
+        </section>
       </div>
+
+      <section class="summary-block">
+        <h3>Últimos pedidos</h3>
+        <div id="summaryRecentOrders" class="summary-recent-orders"><!-- filled by JS --></div>
+      </section>
     </div>
 
     <!-- ============ TAB: PRODUCTOS ============ -->
     <div class="admin-tab-panel" id="tabProducts" hidden>
-      <section class="admin-toolbar">
-        <input type="text" id="adminSearch" placeholder="Buscar producto…">
-        <label class="no-photo-toggle">
-          <input type="checkbox" id="filterNoPhoto">
-          <span>Solo sin foto</span>
-          <span class="count-pill" id="noPhotoCount">0</span>
-        </label>
-        <div class="admin-actions">
-          <button id="newProductBtn" class="btn-primary">+ Nuevo producto</button>
-        </div>
-      </section>
-      <div class="table-wrap">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th></th>
-              <th>Nombre</th>
-              <th>Categoría</th>
-              <th>Precio</th>
-              <th>Mín.</th>
-              <th>Disponible</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="adminTableBody"></tbody>
-        </table>
+
+    <!-- Barra de acciones + stats -->
+    <section class="admin-toolbar">
+      <div class="admin-stats">
+        <div class="mini-stat"><strong id="statTotal">0</strong><span>productos</span></div>
+        <div class="mini-stat"><strong id="statAvail">0</strong><span>disponibles</span></div>
+        <div class="mini-stat"><strong id="statBrands">0</strong><span>marcas</span></div>
       </div>
-    </div>
+
+      <div class="admin-actions">
+        <button class="btn-ghost" id="importBtn">↓ Importar catálogo inicial</button>
+        <button class="btn-ghost" id="bulkUploadBtn">⬆ Cargar desde Excel</button>
+        <input type="file" id="bulkUploadFile" accept=".xlsx,.xls" hidden>
+        <button class="btn-primary" id="newProductBtn">+ Nuevo producto</button>
+      </div>
+    </section>
+
+    <p class="import-hint" id="importHint" hidden>
+      Esto carga el catálogo de <strong>397 productos</strong> extraído del PDF original a tu base de
+      datos de Supabase. Úsalo <strong>una sola vez</strong> (al principio) — si lo corres de nuevo
+      creará productos duplicados. ¿Deseas continuar?
+      <button class="btn-primary btn-sm" id="confirmImportBtn">Sí, importar ahora</button>
+      <button class="btn-ghost btn-sm" id="cancelImportBtn">Cancelar</button>
+    </p>
+
+    <!-- Filtros -->
+    <section class="admin-filters">
+      <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+          <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <input type="text" id="adminSearch" placeholder="Buscar producto, marca o referencia…">
+      </div>
+      <select id="adminCategoryFilter"><option value="">Todas las categorías</option></select>
+      <select id="adminBrandFilter"><option value="">Todas las marcas</option></select>
+      <select id="adminAvailFilter">
+        <option value="">Disponibles y agotados</option>
+        <option value="true">Solo disponibles</option>
+        <option value="false">Solo agotados</option>
+      </select>
+      <label class="toggle-control">
+        <input type="checkbox" id="adminFeaturedFilter">
+        <span>Solo destacados ⭐</span>
+      </label>
+    </section>
+
+    <p class="admin-results-count" id="adminResultsCount"></p>
+
+    <!-- Tabla de productos -->
+    <section class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th class="col-img"></th>
+            <th>Producto</th>
+            <th>Marca</th>
+            <th>Categoría</th>
+            <th>Detal</th>
+            <th>Mayor</th>
+            <th>Stock</th>
+            <th>Estado</th>
+            <th class="col-actions"></th>
+          </tr>
+        </thead>
+        <tbody id="adminTableBody"><!-- filas por JS --></tbody>
+      </table>
+      <p class="admin-empty" id="adminEmpty" hidden>No hay productos que coincidan con estos filtros.</p>
+    </section>
+    </div><!-- /tabProducts -->
 
     <!-- ============ TAB: PEDIDOS ============ -->
     <div class="admin-tab-panel" id="tabOrders" hidden>
-      <div class="my-link-box" id="myLinkBox" hidden>
-        <div class="my-link-text"><strong>Tu link personal</strong><span>Envíaselo a tus clientes: cuando lo abren, el pedido te llega a ti.</span></div>
-        <div class="my-link-row"><input type="text" id="myLinkUrl" readonly><button type="button" class="btn-primary" id="copyMyLinkBtn">Copiar</button></div>
-      </div>
-      <div class="orders-toolbar">
-        <label class="orders-month"><span>Mes</span><select id="ordersMonth"></select></label>
-        <span class="orders-count" id="ordersMonthInfo"></span>
-        <div class="orders-actions">
-          <button type="button" class="btn-primary" id="ordersExportMonthBtn">⬇ Descargar este mes (Excel)</button>
-          <button type="button" class="btn-ghost" id="ordersExportAllBtn">⬇ Todo el historial</button>
+      <section class="admin-toolbar">
+        <div class="admin-stats">
+          <div class="mini-stat"><strong id="statOrdersTotal">0</strong><span>pedidos</span></div>
+          <div class="mini-stat"><strong id="statOrdersNew">0</strong><span>nuevos</span></div>
+          <div class="mini-stat"><strong id="statOrdersTotalSum">$0</strong><span>en pedidos</span></div>
         </div>
-      </div>
-      <div class="orders-list" id="ordersList"></div>
-      <p class="admin-empty" id="ordersEmpty" hidden>Todavía no hay pedidos.</p>
-    </div>
+        <div class="admin-actions">
+          <button class="btn-ghost" id="refreshOrdersBtn">↻ Actualizar</button>
+        </div>
+      </section>
 
-    <!-- ============ TAB: CLIENTES ============ -->
-    <div class="admin-tab-panel" id="tabClients" hidden>
-      <div class="clients-toolbar">
-        <input type="search" id="clientsSearch" placeholder="Buscar por nombre, cédula o teléfono…">
-        <button type="button" class="btn-primary" id="clientsExportBtn">⬇ Descargar clientes en Excel</button>
-      </div>
-      <p class="banners-hint" id="clientsSummary"></p>
-      <div class="table-wrap">
-        <table class="admin-table clients-table">
-          <thead><tr><th>Cliente</th><th>Cédula</th><th>Teléfono</th><th>Pedidos</th><th>Total</th><th>Último pedido</th><th>Asesora(s)</th></tr></thead>
-          <tbody id="clientsBody"></tbody>
+      <section class="admin-filters">
+        <select id="orderStatusFilter">
+          <option value="">Todos los estados</option>
+          <option value="nuevo">Nuevo</option>
+          <option value="tomado">Pedido Tomado</option>
+          <option value="entregado">Entregado</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+      </section>
+
+      <section class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Cliente</th>
+              <th>Contacto</th>
+              <th>Entrega</th>
+              <th>Pago</th>
+              <th>Total</th>
+              <th>Estado</th>
+              <th class="col-actions"></th>
+            </tr>
+          </thead>
+          <tbody id="ordersTableBody"><!-- filas por JS --></tbody>
         </table>
-      </div>
-      <p class="admin-empty" id="clientsEmpty" hidden>Todavía no hay clientes.</p>
-    </div>
-
-    <!-- ============ TAB: CARGA MASIVA ============ -->
-    <div class="admin-tab-panel" id="tabBulk" hidden>
-      <div class="bulk-card">
-        <h2>Carga masiva de productos</h2>
-        <p class="bulk-lead">Llena la plantilla de Excel con todos tus productos y súbela aquí: se crean los nuevos y se actualizan los que ya existen (por <strong>referencia</strong> o por nombre). Nada se guarda hasta que presiones <strong>Importar</strong>.</p>
-
-        <div class="bulk-step">
-          <span class="bulk-num">1</span>
-          <div>
-            <h3>Descarga la plantilla</h3>
-            <p>Trae listas desplegables, instrucciones y un ejemplo. Si quieres cambiar precios en masa, descarga tu catálogo actual, edítalo y vuelve a subirlo.</p>
-            <div class="bulk-buttons">
-              <a class="btn-primary bulk-link" href="plantilla_carga_productos.xlsx" download>⬇ Plantilla vacía</a>
-              <button type="button" class="bulk-secondary" id="bulkExportBtn">⬇ Mi catálogo actual</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="bulk-step">
-          <span class="bulk-num">2</span>
-          <div>
-            <h3>Sube tu Excel</h3>
-            <input type="file" id="bulkFile" accept=".xlsx,.xls,.csv">
-          </div>
-        </div>
-
-        <div class="bulk-step">
-          <span class="bulk-num">3</span>
-          <div>
-            <h3>Sube las fotos <span class="bulk-opt">(opcional)</span></h3>
-            <p>Selecciona todas juntas. Se emparejan por el nombre del archivo con la columna «Foto» (o con la Referencia / el Nombre) y se reducen solas para que la tienda cargue rápido. Formatos: JPG, PNG o WEBP.</p>
-            <input type="file" id="bulkPhotos" accept="image/jpeg,image/png,image/webp" multiple>
-            <p class="bulk-photo-info" id="bulkPhotoInfo">Aún no has elegido fotos.</p>
-          </div>
-        </div>
-
-        <div class="bulk-step">
-          <span class="bulk-num">4</span>
-          <div style="flex:1; min-width:0">
-            <h3>Revisa y confirma</h3>
-            <div class="bulk-summary" id="bulkSummary"></div>
-            <div class="table-wrap bulk-table-wrap" id="bulkPreviewWrap" hidden>
-              <table class="admin-table bulk-table">
-                <thead><tr><th>Fila</th><th>Acción</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Mín.</th><th>Foto</th><th>Estado</th></tr></thead>
-                <tbody id="bulkPreviewBody"></tbody>
-              </table>
-            </div>
-            <div class="bulk-actions">
-              <button type="button" class="btn-primary" id="bulkImportBtn" disabled>Importar</button>
-              <progress id="bulkProgress" value="0" max="1" hidden></progress>
-              <span id="bulkStatus" class="bulk-status"></span>
-            </div>
-            <div id="bulkResult"></div>
-          </div>
-        </div>
-      </div>
-    </div>
+        <p class="admin-empty" id="ordersEmpty" hidden>Todavía no hay pedidos.</p>
+      </section>
+    </div><!-- /tabOrders -->
 
     <!-- ============ TAB: BANNERS ============ -->
     <div class="admin-tab-panel" id="tabBanners" hidden>
       <section class="admin-toolbar">
-        <p class="banners-hint">Los banners aparecen en el carrusel de la portada, en el orden que elijas.</p>
-        <button id="newBannerBtn" class="btn-primary">+ Nuevo banner</button>
+        <p class="banners-hint">Estos slides aparecen arriba de todo en tu sitio, en el orden que definas.</p>
+        <div class="admin-actions">
+          <button class="btn-primary" id="newBannerBtn">+ Nuevo banner</button>
+        </div>
       </section>
-      <div class="banners-list" id="bannersList"></div>
-    </div>
 
-    <!-- ============ TAB: ASESORAS ============ -->
-    <div class="admin-tab-panel" id="tabAdvisors" hidden>
+      <section class="banners-grid" id="bannersGrid"><!-- filas por JS --></section>
+      <p class="admin-empty" id="bannersEmpty" hidden>Todavía no has creado ningún banner.</p>
+    </div><!-- /tabBanners -->
+
+    <!-- ============ TAB: CUPONES ============ -->
+    <div class="admin-tab-panel" id="tabCoupons" hidden>
       <section class="admin-toolbar">
-        <p class="banners-hint">Las asesoras activas reciben clientes por turnos cuando alguien pide "asígname una". El orden de abajo es el orden del turno.</p>
-        <button id="newAdvisorBtn" class="btn-primary">+ Nueva asesora</button>
+        <p class="banners-hint">Los clientes escriben el código en el carrito para obtener el descuento.</p>
+        <div class="admin-actions">
+          <button class="btn-primary" id="newCouponBtn">+ Nuevo cupón</button>
+        </div>
       </section>
-      <div class="advisor-links" id="advisorLinks"></div>
-      <div class="table-wrap">
+
+      <section class="admin-table-wrap">
         <table class="admin-table">
           <thead>
             <tr>
-              <th></th>
-              <th>Nombre</th>
-              <th>WhatsApp</th>
-              <th>Orden</th>
-              <th>Activa</th>
+              <th>Código</th>
+              <th>Descuento</th>
+              <th>Vence</th>
+              <th>Estado</th>
               <th></th>
             </tr>
           </thead>
-          <tbody id="advisorsTableBody"></tbody>
+          <tbody id="couponsTableBody"><!-- filas por JS --></tbody>
         </table>
-      </div>
-    </div>
+      </section>
+      <p class="admin-empty" id="couponsEmpty" hidden>Todavía no has creado ningún cupón.</p>
+    </div><!-- /tabCoupons -->
+
+    <!-- ============ TAB: RESEÑAS ============ -->
+    <div class="admin-tab-panel" id="tabReviews" hidden>
+      <section class="admin-toolbar">
+        <p class="banners-hint">Las reseñas nuevas quedan pendientes hasta que las apruebes; solo entonces se ven en el sitio.</p>
+        <div class="admin-stats">
+          <div class="mini-stat"><strong id="statReviewsPending">0</strong><span>pendientes</span></div>
+          <div class="mini-stat"><strong id="statReviewsApproved">0</strong><span>aprobadas</span></div>
+        </div>
+      </section>
+
+      <div class="reviews-admin-list" id="reviewsAdminList"><!-- filas por JS --></div>
+      <p class="admin-empty" id="reviewsAdminEmpty" hidden>Todavía no hay reseñas.</p>
+    </div><!-- /tabReviews -->
+
+    <!-- ============ TAB: AVÍSAME CUANDO VUELVA ============ -->
+    <div class="admin-tab-panel" id="tabRestock" hidden>
+      <section class="admin-toolbar">
+        <p class="banners-hint">Clientes esperando a que un producto vuelva a estar disponible. Márcalos como "avisados" después de escribirles por WhatsApp.</p>
+        <div class="admin-stats">
+          <div class="mini-stat"><strong id="statRestockPending">0</strong><span>pendientes</span></div>
+        </div>
+      </section>
+
+      <div class="restock-admin-list" id="restockAdminList"><!-- filas por JS --></div>
+      <p class="admin-empty" id="restockAdminEmpty" hidden>Nadie ha pedido que le avisen de ningún producto todavía.</p>
+    </div><!-- /tabRestock -->
+
+    <!-- ============ TAB: LOGOS DE MARCAS ============ -->
+    <div class="admin-tab-panel" id="tabBrandLogos" hidden>
+      <section class="admin-toolbar">
+        <p class="banners-hint">Sube el logo real de cada marca para que aparezca en el marquee de la portada, en vez de solo el nombre en texto. Si una marca no tiene logo subido, se sigue mostrando su nombre normal.</p>
+      </section>
+      <div class="brand-logos-list" id="brandLogosList"><!-- filas por JS --></div>
+    </div><!-- /tabBrandLogos -->
+
+    <!-- ============ TAB: COLECCIONES ============ -->
+    <div class="admin-tab-panel" id="tabCollections" hidden>
+      <section class="admin-toolbar">
+        <p class="banners-hint">Arma franjas curadas (ej. "Combo Novia") que aparecen en tu portada.</p>
+        <div class="admin-actions">
+          <button class="btn-primary" id="newCollectionBtn">+ Nueva colección</button>
+        </div>
+      </section>
+
+      <div class="collections-admin-list" id="collectionsAdminList"><!-- filas por JS --></div>
+      <p class="admin-empty" id="collectionsAdminEmpty" hidden>Todavía no has creado ninguna colección.</p>
+    </div><!-- /tabCollections -->
 
     <!-- ============ TAB: AJUSTES ============ -->
     <div class="admin-tab-panel" id="tabSettings" hidden>
-      <form id="settingsForm" class="settings-form">
-        <h2>Textos de la portada</h2>
-        <label>
-          <span>Texto pequeño (arriba del título)</span>
-          <input type="text" id="settingsEyebrow">
-        </label>
-        <label>
-          <span>Título principal</span>
-          <input type="text" id="settingsHeroTitle" placeholder="Deja vacío para usar el de siempre">
-        </label>
-        <label>
-          <span>Subtítulo</span>
-          <textarea id="settingsHeroSubtitle" rows="2"></textarea>
-        </label>
+      <section class="settings-panel">
 
-        <h2>Tasa del dólar</h2>
-        <label>
-          <span>Bs por $1</span>
-          <input type="number" id="settingsExchangeRate" step="0.01" min="0">
-        </label>
-
-        <label>
-          <span>Código de bodega en PosGold</span>
-          <input type="text" id="settingsPosgoldBodega" placeholder="01">
-          <small class="field-hint">Se escribe en la columna «cod_bodega» del Excel que se descarga de cada pedido para PosGold.</small>
-        </label>
-
-        <h2>Datos de pago</h2>
-        <div class="form-row three">
-          <label><span>Pago Móvil — Teléfono</span><input type="text" id="settingsPagoMovilPhone"></label>
-          <label><span>Pago Móvil — Cédula/RIF</span><input type="text" id="settingsPagoMovilCedula"></label>
-          <label><span>Pago Móvil — Banco</span><input type="text" id="settingsPagoMovilBank"></label>
-        </div>
-        <div class="form-row two">
-          <label>
-            <span>Binance — ID</span>
-            <input type="text" id="settingsBinanceId" inputmode="numeric" placeholder="Ej: 123456789">
-            <small class="field-hint">Solo el ID (Binance Pay). Por seguridad ya no se guardan nombre ni correo; al guardar se borran los que hubiera.</small>
-          </label>
-        </div>
-        <div class="form-row two">
-          <label>
-            <span>Productos agotados en el catálogo</span>
-            <select id="settingsHideSoldout">
-              <option value="true">Ocultarlos del catálogo</option>
-              <option value="false">Mostrarlos con la etiqueta «Agotado»</option>
-            </select>
-          </label>
-        </div>
-        <div class="hours-box">
-          <h3 class="hours-title">Horario de atención</h3>
-          <label class="check-row"><input type="checkbox" id="settingsHoursEnabled"> <span>Avisar al cliente, al terminar su pedido, si estamos dentro o fuera de horario</span></label>
-          <table class="hours-table"><tbody id="hoursRows"></tbody></table>
-          <small class="field-hint">Hora de Venezuela. <b>Con horario</b>: se atiende entre esas horas. <b>Virtual limitado</b>: sin hora fija; se le avisa al cliente que se le responde cuando haya una asesora disponible (por ejemplo, los domingos). <b>Cerrado</b>: ese día no se atiende. Fuera de horario, el cliente ve cuándo lo atenderán.</small>
-        </div>
-        <div class="form-row two">
-          <label><span>Zelle — Correo</span><input type="text" id="settingsZelleEmail"></label>
-          <label><span>Zelle — Titular</span><input type="text" id="settingsZelleHolder"></label>
+        <div class="settings-group">
+          <h3>Marca</h3>
+          <div class="form-row">
+            <label>
+              <span>Logo</span>
+              <div class="image-field">
+                <img id="settingsLogoPreview" alt="" hidden>
+                <input type="file" id="settingsLogoFile" accept="image/*">
+                <input type="text" id="settingsLogoUrl" placeholder="o pega la URL de una imagen">
+              </div>
+              <small id="settingsLogoStatus"></small>
+            </label>
+          </div>
+          <div class="form-row two">
+            <label>
+              <span>Nombre de la tienda</span>
+              <input type="text" id="settingsStoreName" placeholder="Shopicol">
+            </label>
+            <label>
+              <span>Eslogan / palabra destacada</span>
+              <input type="text" id="settingsTagline" placeholder="Bacano">
+            </label>
+          </div>
         </div>
 
-        <button type="submit" class="btn-primary" id="saveSettingsBtn">Guardar ajustes</button>
-        <p class="form-message" id="settingsMessage" hidden></p>
-      </form>
-    </div>
+        <div class="settings-group">
+          <h3>Colores</h3>
+          <div class="form-row two">
+            <label>
+              <span>Color principal (rosa)</span>
+              <div class="color-field">
+                <input type="color" id="settingsPrimaryColor" value="#D6336C">
+                <input type="text" id="settingsPrimaryColorHex" placeholder="#D6336C">
+              </div>
+            </label>
+            <label>
+              <span>Color secundario (dorado)</span>
+              <div class="color-field">
+                <input type="color" id="settingsAccentColor" value="#E8A33D">
+                <input type="text" id="settingsAccentColorHex" placeholder="#E8A33D">
+              </div>
+            </label>
+          </div>
+          <div class="form-row two">
+            <label>
+              <span>Color de fondo del sitio</span>
+              <div class="color-field">
+                <input type="color" id="settingsBgColor" value="#FBF6EC">
+                <input type="text" id="settingsBgColorHex" placeholder="#FBF6EC">
+              </div>
+            </label>
+            <label>
+              <span>Color del texto principal</span>
+              <div class="color-field">
+                <input type="color" id="settingsTextColor" value="#2B1B17">
+                <input type="text" id="settingsTextColorHex" placeholder="#2B1B17">
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>Tipografía y diseño</h3>
+          <div class="form-row">
+            <label>
+              <span>Combinación de letras</span>
+              <select id="settingsFontPair">
+                <option value="clasica">Clásica elegante (Fraunces + Plus Jakarta Sans)</option>
+                <option value="moderna">Moderna minimalista (Poppins + Inter)</option>
+                <option value="divertida">Divertida y redondeada (Baloo 2 + Nunito)</option>
+                <option value="editorial">Editorial refinada (Playfair Display + Lora)</option>
+                <option value="calida">Cálida artesanal (DM Serif Display + DM Sans)</option>
+                <option value="boutique">Elegante boutique (Italiana + Montserrat)</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              <span>Bordes de las tarjetas de producto</span>
+              <select id="settingsCardRadius">
+                <option value="6">Cuadrado</option>
+                <option value="18">Suave (por defecto)</option>
+                <option value="28">Redondeado</option>
+                <option value="40">Muy redondeado</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>Textos del inicio</h3>
+          <div class="form-row">
+            <label>
+              <span>Línea pequeña arriba del título</span>
+              <input type="text" id="settingsEyebrow" placeholder="✦ Catálogo completo · edición web ✦">
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              <span>Título principal</span>
+              <input type="text" id="settingsHeroTitle" placeholder="Lo más bacano para ti.">
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              <span>Palabra destacada dentro del título (se resalta en rosa)</span>
+              <input type="text" id="settingsHeroAccent" placeholder="bacano">
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              <span>Frase de bienvenida (debajo del título)</span>
+              <textarea id="settingsHeroSubtitle" rows="3"></textarea>
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              <span>Cuadro "¿Cómo comprar?"</span>
+              <textarea id="settingsHeroNote" rows="3"></textarea>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>Pie de página</h3>
+          <div class="form-row">
+            <label>
+              <span>Descripción bajo el logo</span>
+              <textarea id="settingsFooterDescription" rows="2"></textarea>
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              <span>Línea inferior (todo abajo del sitio)</span>
+              <input type="text" id="settingsFooterBottom" placeholder="Catálogo generado a partir del PDF original...">
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>💱 Tasa del dólar</h3>
+          <p class="settings-hint">La usas tú mismo para actualizarla cuando quieras — el sitio la multiplica por el total del pedido para mostrarle al cliente el equivalente en bolívares.</p>
+          <div class="form-row two">
+            <label>
+              <span>Tasa (Bs por $1)</span>
+              <input type="number" id="settingsExchangeRate" step="0.01" min="0" placeholder="Ej: 145.30">
+            </label>
+            <label>
+              <span>Última actualización</span>
+              <input type="text" id="settingsExchangeRateUpdated" disabled placeholder="Se actualiza sola al guardar">
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>💳 Datos de pago</h3>
+          <p class="settings-hint">Se le muestran al cliente en el checkout según el método de pago que elija.</p>
+          <p class="settings-hint" style="margin-top:-8px;"><strong>Pago Móvil</strong></p>
+          <div class="form-row two">
+            <label>
+              <span>Teléfono</span>
+              <input type="text" id="settingsPagoMovilPhone" placeholder="Ej: 0412 1234567">
+            </label>
+            <label>
+              <span>Cédula/RIF</span>
+              <input type="text" id="settingsPagoMovilCedula" placeholder="Ej: V-12345678">
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              <span>Banco</span>
+              <input type="text" id="settingsPagoMovilBank" placeholder="Ej: Banesco">
+            </label>
+          </div>
+          <p class="settings-hint" style="margin-top:6px;"><strong>Binance</strong></p>
+          <div class="form-row two">
+            <label>
+              <span>Correo / ID de Binance Pay</span>
+              <input type="text" id="settingsBinanceEmail" placeholder="Ej: tucuenta@binance.com">
+            </label>
+            <label>
+              <span>Nombre del titular</span>
+              <input type="text" id="settingsBinanceHolder" placeholder="Ej: Shopicol Bacano">
+            </label>
+          </div>
+          <p class="settings-hint" style="margin-top:6px;"><strong>Zelle</strong></p>
+          <div class="form-row two">
+            <label>
+              <span>Correo de Zelle</span>
+              <input type="text" id="settingsZelleEmail" placeholder="Ej: tucuenta@correo.com">
+            </label>
+            <label>
+              <span>Nombre del titular</span>
+              <input type="text" id="settingsZelleHolder" placeholder="Ej: Shopicol Bacano">
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>SEO / buscadores</h3>
+          <div class="form-row">
+            <label>
+              <span>Descripción del sitio (aparece en Google y al compartir el link)</span>
+              <textarea id="settingsMetaDescription" rows="2"></textarea>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>✨ Oferta adicional en el checkout</h3>
+          <p class="settings-hint">Justo antes de que el cliente envíe su pedido por WhatsApp, le puede aparecer una ventanita ofreciendo agregar un producto extra por un monto pequeño (ej. "por $0.50 más, llévate una lámina de glitter preseleccionada"). Aquí decides si está activa y qué dice.</p>
+          <div class="form-row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="settingsUpsellEnabled">
+              <span>Mostrar esta oferta en el checkout</span>
+            </label>
+          </div>
+          <div class="form-row">
+            <label class="grow">
+              <span>Título de la ventanita</span>
+              <input type="text" id="settingsUpsellTitle" placeholder="¡Bedazzled tu compra! ✨">
+            </label>
+          </div>
+          <div class="form-row">
+            <label class="grow">
+              <span>Texto descriptivo</span>
+              <textarea id="settingsUpsellDescription" rows="2" placeholder="Por $0.50 más, agrega una lámina de glitter (piedritas preseleccionadas) a tu pedido."></textarea>
+            </label>
+          </div>
+          <div class="form-row two">
+            <label>
+              <span>Nombre del producto extra (aparece en el pedido)</span>
+              <input type="text" id="settingsUpsellProductName" placeholder="Lámina de glitter (preseleccionada)">
+            </label>
+            <label>
+              <span>Precio extra (USD)</span>
+              <input type="number" id="settingsUpsellPrice" step="0.01" min="0.01" placeholder="0.50">
+            </label>
+          </div>
+          <div class="form-row">
+            <label class="grow">
+              <span>Texto del botón para aceptar</span>
+              <input type="text" id="settingsUpsellButtonText" placeholder="Sí, quiero agregarlo">
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3>Contáctanos</h3>
+          <p class="settings-hint">El WhatsApp se configura aparte, en el archivo config.js. Aquí solo agregas correo y redes.</p>
+          <div class="form-row two">
+            <label>
+              <span>Título de la sección</span>
+              <input type="text" id="settingsContactTitle" placeholder="✦ Contáctanos ✦">
+            </label>
+            <label>
+              <span>Frase debajo del título</span>
+              <input type="text" id="settingsContactSubtitle" placeholder="¿Tienes dudas...?">
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              <span>Correo de contacto</span>
+              <input type="email" id="settingsEmail" placeholder="contacto@shopicol.com">
+            </label>
+          </div>
+          <div class="form-row two">
+            <label>
+              <span>Instagram (URL completa)</span>
+              <input type="text" id="settingsInstagram" placeholder="https://instagram.com/shopicolbacano">
+            </label>
+            <label>
+              <span>TikTok (URL completa)</span>
+              <input type="text" id="settingsTiktok" placeholder="https://tiktok.com/@shopicolbacano">
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              <span>Facebook (URL completa)</span>
+              <input type="text" id="settingsFacebook" placeholder="https://facebook.com/shopicolbacano">
+            </label>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <div class="form-actions-right">
+            <button type="button" class="btn-primary" id="saveSettingsBtn">Guardar ajustes</button>
+          </div>
+        </div>
+        <p class="form-error" id="settingsFormError" hidden></p>
+      </section>
+    </div><!-- /tabSettings -->
+
+    <!-- ============ TAB: CLIENTES ============ -->
+    <div class="admin-tab-panel" id="tabCustomers" hidden>
+      <section class="admin-toolbar">
+        <div class="admin-stats">
+          <div class="mini-stat"><strong id="statCustomersTotal">0</strong><span>clientes</span></div>
+          <div class="mini-stat"><strong id="statCustomersOrders">0</strong><span>pedidos totales</span></div>
+          <div class="mini-stat"><strong id="statCustomersSpent">$0</strong><span>total comprado</span></div>
+        </div>
+        <div class="admin-actions">
+          <button class="btn-primary" id="exportCustomersBtn">⬇ Exportar CSV (para ads)</button>
+        </div>
+      </section>
+
+      <p class="banners-hint">Cada cliente aparece una sola vez, con su historial acumulado — útil para armar audiencias en Meta/Facebook Ads o Google Ads con el CSV.</p>
+
+      <section class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Teléfono</th>
+              <th>Correo</th>
+              <th>Ciudad</th>
+              <th>Pedidos</th>
+              <th>Total comprado</th>
+              <th>Último pedido</th>
+            </tr>
+          </thead>
+          <tbody id="customersTableBody"><!-- filas por JS --></tbody>
+        </table>
+        <p class="admin-empty" id="customersEmpty" hidden>Todavía no hay clientes con pedidos registrados.</p>
+      </section>
+    </div><!-- /tabCustomers -->
 
   </main>
 </div>
 
-<!-- ============ MODAL: PRODUCTO ============ -->
+<!-- ============ MODAL: crear / editar producto ============ -->
 <div class="modal-overlay" id="productModalOverlay" hidden>
   <div class="modal-card">
-    <button class="modal-close" id="productModalClose">✕</button>
+    <button class="modal-close" id="productModalClose" aria-label="Cerrar">✕</button>
     <h2 id="productModalTitle">Nuevo producto</h2>
+
     <form id="productForm" class="product-form">
       <input type="hidden" id="fieldId">
-      <label><span>Nombre *</span><input type="text" id="fieldName" required></label>
-      <div class="form-row two">
-        <label><span>Marca</span><input type="text" id="fieldBrand"></label>
-        <label><span>Categoría *</span><input type="text" id="fieldCategory" required list="categoryOptions"><datalist id="categoryOptions"></datalist></label>
-      </div>
-      <div class="form-row two">
-        <label><span>Referencia/SKU</span><input type="text" id="fieldRef"></label>
-        <label><span>Código en PosGold <em class="opt">(opcional)</em></span><input type="text" id="fieldPosgold" placeholder="Ej: 002"></label>
-      </div>
-      <div class="form-row two">
-        <label><span>Disponible</span>
-          <select id="fieldAvail"><option value="true">Sí</option><option value="false">No</option></select>
+
+      <div class="form-row">
+        <label class="grow">
+          <span>Nombre del producto *</span>
+          <input type="text" id="fieldName" required placeholder="Ej: Base Líquida Velvet Touch">
         </label>
       </div>
-      <div class="form-row three">
-        <label><span>Precio *</span><input type="number" id="fieldMayor" step="0.01" min="0" required></label>
-        <label><span>Precio Oferta</span><input type="number" id="fieldOffer" step="0.01" min="0"></label>
-        <label><span>Cantidad mínima *</span><input type="number" id="fieldMinQty" step="1" min="1" value="12" required></label>
-      </div>
-      <label><span>Stock (opcional)</span><input type="number" id="fieldStock" step="1" min="0"></label>
-      <label><span>Descripción / contenido (la ve el cliente)</span><textarea id="fieldNote" rows="5" placeholder="Para una caja: escribe un perfume por línea"></textarea></label>
-      <label class="checkbox-label">
-        <input type="checkbox" id="fieldFeatured">
-        <span>Destacado (aparece en el carrusel de la portada)</span>
-      </label>
-      <label><span>Imagen</span><input type="file" id="fieldImageFile" accept="image/*"></label>
-      <img id="fieldImagePreview" class="image-preview" hidden>
 
-      <div class="form-actions">
-        <button type="button" class="btn-danger" id="deleteProductBtn" hidden>Eliminar</button>
-        <div class="form-actions-right">
-          <button type="button" id="cancelProductBtn">Cancelar</button>
-          <button type="submit" id="saveProductBtn" class="btn-primary">Guardar</button>
-        </div>
-      </div>
-      <p class="form-message" id="productFormMessage" hidden></p>
-    </form>
-  </div>
-</div>
-
-<!-- ============ MODAL: ASESORA ============ -->
-<div class="modal-overlay" id="advisorModalOverlay" hidden>
-  <div class="modal-card">
-    <button class="modal-close" id="advisorModalClose">✕</button>
-    <h2 id="advisorModalTitle">Nueva asesora</h2>
-    <form id="advisorForm" class="product-form">
-      <input type="hidden" id="advisorFieldId">
-      <label><span>Nombre *</span><input type="text" id="advisorFieldName" required></label>
-      <label><span>WhatsApp (ej: 584121234567) *</span><input type="text" id="advisorFieldPhone" required></label>
-      <label><span>Foto</span><input type="file" id="advisorFieldImageFile" accept="image/*"></label>
-      <img id="advisorFieldImagePreview" class="image-preview" hidden>
       <div class="form-row two">
-        <label><span>Orden del turno</span><input type="number" id="advisorFieldSort" value="0"></label>
-        <label class="checkbox-label"><input type="checkbox" id="advisorFieldActive" checked><span>Activa</span></label>
+        <label>
+          <span>Marca *</span>
+          <input type="text" id="fieldBrand" list="brandOptions" required placeholder="Ej: Dolce Bella">
+          <datalist id="brandOptions"></datalist>
+        </label>
+        <label>
+          <span>Categoría *</span>
+          <input type="text" id="fieldCategory" list="categoryOptions" required placeholder="Ej: Rostro">
+          <datalist id="categoryOptions"></datalist>
+        </label>
       </div>
+
+      <div class="form-row two">
+        <label>
+          <span>Referencia</span>
+          <input type="text" id="fieldRef" placeholder="Ej: VG8207">
+        </label>
+        <label>
+          <span>Estado</span>
+          <select id="fieldAvail">
+            <option value="true">Disponible</option>
+            <option value="false">Agotado</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="form-row two">
+        <label>
+          <span>Precio Detal (USD) *</span>
+          <input type="number" id="fieldDetal" step="0.01" min="0" required placeholder="0.00">
+        </label>
+        <label>
+          <span>Precio Mayor (USD) *</span>
+          <input type="number" id="fieldMayor" step="0.01" min="0" required placeholder="0.00">
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label>
+          <span>Precio especial "Ahora" (opcional)</span>
+          <input type="number" id="fieldOffer" step="0.01" min="0" placeholder="Déjalo vacío si no aplica">
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label>
+          <span>Stock disponible (opcional)</span>
+          <input type="number" id="fieldStock" step="1" min="0" placeholder="Déjalo vacío si no controlas stock de este producto">
+          <small>Si lo llenas y llega a 0, el producto se marca "Agotado" automáticamente.</small>
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label class="checkbox-label">
+          <input type="checkbox" id="fieldFeatured">
+          <span>⭐ Destacado (aparece en el carrusel de la portada)</span>
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label class="checkbox-label">
+          <input type="checkbox" id="fieldShowWhenOut" checked>
+          <span>👁️ Mostrar en el catálogo aunque esté agotado (con botón "Avísame cuando vuelva")</span>
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label>
+          <span>Imagen principal</span>
+          <div class="image-field">
+            <img id="imagePreview" alt="" hidden>
+            <input type="file" id="fieldImageFile" accept="image/*">
+            <input type="text" id="fieldImageUrl" placeholder="o pega la URL de una imagen">
+          </div>
+          <small id="imageUploadStatus"></small>
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label>
+          <span>Galería (fotos adicionales)</span>
+          <div id="galleryList" class="gallery-list"><!-- filas por JS --></div>
+          <button type="button" class="btn-ghost btn-sm" id="addGalleryPhotoBtn" style="margin-top:8px;">+ Agregar foto</button>
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label>
+          <span>Tonos disponibles (opcional, separados por coma)</span>
+          <input type="text" id="fieldTones" placeholder="Ej: Nude, Rosa, Coral">
+          <small>El cliente va a poder elegir uno de estos tonos antes de agregar al carrito. Déjalo vacío si el producto no tiene variantes de tono.</small>
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label>
+          <span>Notas internas (opcional, no se muestran al público)</span>
+          <textarea id="fieldNote" rows="2" placeholder="Ej: pendiente de confirmar color con proveedor"></textarea>
+        </label>
+      </div>
+
       <div class="form-actions">
-        <button type="button" class="btn-danger" id="deleteAdvisorBtn" hidden>Eliminar</button>
+        <button type="button" class="btn-danger" id="deleteProductBtn" hidden>Eliminar producto</button>
         <div class="form-actions-right">
-          <button type="button" id="cancelAdvisorBtn">Cancelar</button>
-          <button type="submit" id="saveAdvisorBtn" class="btn-primary">Guardar</button>
+          <button type="button" class="btn-ghost" id="cancelProductBtn">Cancelar</button>
+          <button type="submit" class="btn-primary" id="saveProductBtn">Guardar producto</button>
         </div>
       </div>
-      <p class="form-message" id="advisorFormMessage" hidden></p>
+      <p class="form-error" id="productFormError" hidden></p>
     </form>
   </div>
 </div>
 
-<!-- ============ MODAL: BANNER ============ -->
+<!-- ============ MODAL: detalle de pedido ============ -->
+<div class="modal-overlay" id="orderModalOverlay" hidden>
+  <div class="modal-card order-modal-card">
+    <button class="modal-close" id="orderModalClose" aria-label="Cerrar">✕</button>
+    <h2>Detalle del pedido</h2>
+    <div id="orderModalBody"><!-- por JS --></div>
+    <button class="btn-primary btn-block" id="downloadReceiptBtn">⬇ Descargar recibo (PDF)</button>
+  </div>
+</div>
+
+<!-- ============ RECIBO IMPRIMIBLE (oculto, solo visible al imprimir/descargar) ============ -->
+<div id="receiptPrintArea" class="receipt-print-area">
+  <div class="receipt-header">
+    <img src="/logo.png" alt="" class="receipt-logo" id="receiptLogo">
+    <div class="receipt-header-text">
+      <h1 id="receiptStoreName">Shopicol Bacano</h1>
+      <p>Recibo de pedido</p>
+    </div>
+  </div>
+
+  <div class="receipt-meta">
+    <div><span>Pedido N.º</span><strong id="receiptOrderId"></strong></div>
+    <div><span>Fecha</span><strong id="receiptDate"></strong></div>
+    <div><span>Estado</span><strong id="receiptStatus"></strong></div>
+  </div>
+
+  <div class="receipt-customer">
+    <h3>Datos del cliente</h3>
+    <div class="receipt-grid">
+      <div><span>Nombre</span><strong id="receiptName"></strong></div>
+      <div><span>Teléfono</span><strong id="receiptPhone"></strong></div>
+      <div><span>Ciudad</span><strong id="receiptCity"></strong></div>
+      <div><span>Método de pago</span><strong id="receiptPayment"></strong></div>
+      <div><span>Entrega</span><strong id="receiptDelivery"></strong></div>
+      <div><span>Dirección</span><strong id="receiptAddress"></strong></div>
+    </div>
+    <p class="receipt-note" id="receiptNoteRow" hidden><span>Nota:</span> <span id="receiptNote"></span></p>
+  </div>
+
+  <table class="receipt-items-table">
+    <thead>
+      <tr><th></th><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr>
+    </thead>
+    <tbody id="receiptItemsBody"><!-- por JS --></tbody>
+  </table>
+
+  <div class="receipt-total-row">
+    <span>Total (<span id="receiptPriceMode">Detal</span>)</span>
+    <strong id="receiptTotal">$0</strong>
+  </div>
+
+  <p class="receipt-footer">Gracias por tu compra ✦ Shopicol Bacano — Lo más bacano para ti</p>
+</div>
+
+<!-- ============ MODAL: carga masiva desde Excel ============ -->
+<div class="modal-overlay" id="bulkModalOverlay" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="bulkModalClose" aria-label="Cerrar">✕</button>
+    <h2>Cargar productos desde Excel</h2>
+    <p class="settings-hint">Revisa el resumen antes de confirmar. Esto siempre <strong>agrega productos nuevos</strong> — no actualiza productos existentes.</p>
+
+    <div id="bulkSummary" class="bulk-summary"><!-- por JS --></div>
+
+    <div id="bulkErrorsList" class="bulk-errors" hidden></div>
+
+    <div class="form-actions">
+      <div class="form-actions-right">
+        <button type="button" class="btn-ghost" id="cancelBulkBtn">Cancelar</button>
+        <button type="button" class="btn-primary" id="confirmBulkBtn">Cargar productos válidos</button>
+      </div>
+    </div>
+    <p class="form-error" id="bulkFormError" hidden></p>
+  </div>
+</div>
+
+<!-- ============ MODAL: crear / editar banner ============ -->
 <div class="modal-overlay" id="bannerModalOverlay" hidden>
   <div class="modal-card">
-    <button class="modal-close" id="bannerModalClose">✕</button>
+    <button class="modal-close" id="bannerModalClose" aria-label="Cerrar">✕</button>
     <h2 id="bannerModalTitle">Nuevo banner</h2>
+
     <form id="bannerForm" class="product-form">
       <input type="hidden" id="bannerFieldId">
-      <label><span>Título</span><input type="text" id="bannerFieldTitle"></label>
-      <label><span>Subtítulo</span><input type="text" id="bannerFieldSubtitle"></label>
-      <label><span>Imagen</span><input type="file" id="bannerFieldImageFile" accept="image/*"></label>
-      <img id="bannerFieldImagePreview" class="image-preview" hidden>
-      <label><span>Imagen para celular <em class="opt">(opcional)</em></span><input type="file" id="bannerFieldMobileFile" accept="image/*"></label>
-      <img id="bannerFieldMobilePreview" class="image-preview" hidden>
-      <button type="button" class="link-btn" id="bannerRemoveMobileBtn" hidden>✕ Quitar la imagen de celular</button>
-      <p class="banner-size-hint">Con la imagen de celular, el banner se ve distinto en el teléfono (por ejemplo más cuadrado, <strong>1080 × 540 px</strong>). Si no la subes, el celular usa la imagen normal. Las imágenes se reducen solas al subirlas para que la tienda cargue rápido.</p>
-      <label><span>Al hacer clic en el banner, ir a</span>
+
+      <div class="form-row">
+        <label class="grow">
+          <span>Título (opcional)</span>
+          <input type="text" id="bannerFieldTitle" placeholder="Ej: ¡Nueva colección disponible!">
+        </label>
+      </div>
+      <p class="form-hint"><strong>Si tu imagen ya trae el texto, deja Título, Subtítulo y Botón vacíos</strong>: el banner se verá completo, sin recortes y sin texto repetido. Tamaño recomendado: 1600 × 450 px (otras medidas también se ven completas).</p>
+
+      <div class="form-row">
+        <label class="grow">
+          <span>Subtítulo (opcional)</span>
+          <input type="text" id="bannerFieldSubtitle" placeholder="Ej: Envíos a toda Venezuela">
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label>
+          <span>Imagen de fondo</span>
+          <div class="image-field">
+            <img id="bannerImagePreview" alt="" hidden>
+            <input type="file" id="bannerFieldImageFile" accept="image/*">
+            <input type="text" id="bannerFieldImageUrl" placeholder="o pega la URL de una imagen">
+          </div>
+          <small id="bannerImageUploadStatus"></small>
+        </label>
+      </div>
+
+      <label>
+        <span>Al hacer clic en el banner, ir a</span>
         <select id="bannerFieldDest">
           <option value="">Sin enlace</option>
-          <option value="categoria:Perfumes Femeninos">Dama (perfumes femeninos)</option>
-          <option value="categoria:Perfumes Masculinos">Caballero (perfumes masculinos)</option>
-          <option value="categoria:Unisex">Unisex</option>
-          <option value="categoria:Cajas / Combos">Cajas / Combos</option>
           <option value="categoria:Todas">Ver todo el catálogo</option>
+          <optgroup label="Categorías">
+            <option value="categoria:Rostro">Rostro</option>
+            <option value="categoria:Ojos">Ojos</option>
+            <option value="categoria:Labios">Labios</option>
+            <option value="categoria:Cejas">Cejas</option>
+            <option value="categoria:Brochas y Pinceles">Brochas y Pinceles</option>
+            <option value="categoria:Capilar">Capilar</option>
+            <option value="categoria:Cuidado Corporal">Cuidado Corporal</option>
+            <option value="categoria:Cuidado Facial">Cuidado Facial</option>
+            <option value="categoria:Accesorios">Accesorios</option>
+            <option value="categoria:Otros">Otros</option>
+          </optgroup>
           <option value="custom">Otro enlace (URL)…</option>
         </select>
       </label>
-      <label id="bannerCustomLinkWrap" hidden><span>Enlace (URL)</span><input type="text" id="bannerFieldLink" placeholder="https://…"></label>
-      <label><span>Texto del botón (opcional)</span><input type="text" id="bannerFieldButtonText" placeholder="Ver más"></label>
-      <p class="banner-size-hint"><strong>Si tu imagen ya trae el texto, deja Título y Subtítulo vacíos</strong>: el banner se verá completo, sin recortes ni velo oscuro, y todo el banner será el botón. Tamaño recomendado: 1600 × 500 px (otras medidas también se ven completas).</p>
+      <label id="bannerCustomLinkWrap" hidden>
+        <span>Enlace (URL)</span>
+        <input type="text" id="bannerFieldButtonLink" placeholder="https://shopicolbacano.com/?buscar=bloom">
+      </label>
+      <label>
+        <span>Texto del botón (opcional)</span>
+        <input type="text" id="bannerFieldButtonText" placeholder="Déjalo vacío si la imagen ya trae su texto">
+      </label>
+
       <div class="form-row two">
-        <label><span>Orden</span><input type="number" id="bannerFieldSort" value="0"></label>
-        <label class="checkbox-label"><input type="checkbox" id="bannerFieldActive" checked><span>Activo</span></label>
+        <label>
+          <span>Orden</span>
+          <input type="number" id="bannerFieldOrder" min="0" value="0">
+        </label>
+        <label class="checkbox-label" style="margin-top:20px;">
+          <input type="checkbox" id="bannerFieldActive" checked>
+          <span>Activo (visible en el sitio)</span>
+        </label>
       </div>
+
       <div class="form-actions">
-        <button type="button" class="btn-danger" id="deleteBannerBtn" hidden>Eliminar</button>
+        <button type="button" class="btn-danger" id="deleteBannerBtn" hidden>Eliminar banner</button>
         <div class="form-actions-right">
-          <button type="button" id="cancelBannerBtn">Cancelar</button>
-          <button type="submit" id="saveBannerBtn" class="btn-primary">Guardar</button>
+          <button type="button" class="btn-ghost" id="cancelBannerBtn">Cancelar</button>
+          <button type="submit" class="btn-primary" id="saveBannerBtn">Guardar banner</button>
         </div>
       </div>
-      <p class="form-message" id="bannerFormMessage" hidden></p>
+      <p class="form-error" id="bannerFormError" hidden></p>
     </form>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../config.js"></script>
-<script src="../supabase-client.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="admin.js"></script>
-<script src="bulk.js"></script>
+<!-- ============ MODAL: NUEVO/EDITAR CUPÓN ============ -->
+<div class="modal-overlay" id="couponModalOverlay" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="couponModalClose" aria-label="Cerrar">✕</button>
+    <h2 id="couponModalTitle">Nuevo cupón</h2>
+
+    <form id="couponForm" class="product-form">
+      <input type="hidden" id="couponFieldId">
+
+      <div class="form-row">
+        <label class="grow">
+          <span>Código *</span>
+          <input type="text" id="couponFieldCode" required placeholder="Ej: BACANO10" style="text-transform:uppercase;">
+        </label>
+      </div>
+
+      <div class="form-row two">
+        <label>
+          <span>Tipo de descuento *</span>
+          <select id="couponFieldType" required>
+            <option value="percent">Porcentaje (%)</option>
+            <option value="fixed">Monto fijo ($)</option>
+          </select>
+        </label>
+        <label>
+          <span>Valor *</span>
+          <input type="number" id="couponFieldValue" min="0.01" step="0.01" required placeholder="Ej: 10">
+        </label>
+      </div>
+
+      <div class="form-row two">
+        <label>
+          <span>Vence (opcional)</span>
+          <input type="date" id="couponFieldExpires">
+        </label>
+        <label class="checkbox-label" style="margin-top:20px;">
+          <input type="checkbox" id="couponFieldActive" checked>
+          <span>Activo</span>
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn-danger" id="deleteCouponBtn" hidden>Eliminar cupón</button>
+        <div class="form-actions-right">
+          <button type="button" class="btn-ghost" id="cancelCouponBtn">Cancelar</button>
+          <button type="submit" class="btn-primary" id="saveCouponBtn">Guardar cupón</button>
+        </div>
+      </div>
+      <p class="form-error" id="couponFormError" hidden></p>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL: NUEVA/EDITAR COLECCIÓN ============ -->
+<div class="modal-overlay" id="collectionModalOverlay" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="collectionModalClose" aria-label="Cerrar">✕</button>
+    <h2 id="collectionModalTitle">Nueva colección</h2>
+
+    <form id="collectionForm" class="product-form">
+      <input type="hidden" id="collectionFieldId">
+
+      <div class="form-row">
+        <label class="grow">
+          <span>Título de la colección *</span>
+          <input type="text" id="collectionFieldTitle" required placeholder="Ej: Combo Novia">
+        </label>
+      </div>
+
+      <div class="form-row two">
+        <label>
+          <span>Orden</span>
+          <input type="number" id="collectionFieldOrder" value="0" step="1">
+        </label>
+        <label class="checkbox-label" style="margin-top:20px;">
+          <input type="checkbox" id="collectionFieldActive" checked>
+          <span>Activa (se ve en el sitio)</span>
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label class="grow">
+          <span>Buscar productos para agregar</span>
+          <input type="text" id="collectionProductSearch" placeholder="Escribe el nombre de un producto…" autocomplete="off">
+        </label>
+      </div>
+      <div class="collection-search-results" id="collectionSearchResults"></div>
+
+      <p class="collection-picked-label">Productos en esta colección (<span id="collectionPickedCount">0</span>)</p>
+      <div class="collection-picked-list" id="collectionPickedList"></div>
+
+      <div class="form-actions">
+        <button type="button" class="btn-danger" id="deleteCollectionBtn" hidden>Eliminar colección</button>
+        <div class="form-actions-right">
+          <button type="button" class="btn-ghost" id="cancelCollectionBtn">Cancelar</button>
+          <button type="submit" class="btn-primary" id="saveCollectionBtn">Guardar colección</button>
+        </div>
+      </div>
+      <p class="form-error" id="collectionFormError" hidden></p>
+    </form>
+  </div>
+</div>
+
+<!-- ============ TOASTS ============ -->
+<div class="toast" id="toast" hidden></div>
+
+<script src="/products.js"></script>
+<script src="/config.js"></script>
+<script src="/supabase-client.js"></script>
+<script src="/admin/admin.js"></script>
 </body>
 </html>
