@@ -419,6 +419,45 @@
     if (match) state.category = match;
   }
 
+  /* Links para compartir: la barra de direcciones refleja lo que se está viendo
+     ?categoria=Dama · ?producto=LV5009 (o el nombre, si no tiene referencia).
+     Los demás parámetros (por ejemplo ?asesora=) se conservan. */
+  function setURLParams(changes) {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      Object.entries(changes).forEach(([k, v]) => { if (v) params.set(k, v); else params.delete(k); });
+      const q = params.toString();
+      const url = window.location.pathname + (q ? "?" + q : "") + window.location.hash;
+      if (url !== window.location.pathname + window.location.search + window.location.hash) history.replaceState(null, "", url);
+    } catch (e) {}
+  }
+  const urlSlug = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const productKey = p => (p && p.ref ? String(p.ref).trim() : urlSlug(p && p.name));
+  function findProductFromKey(key) {
+    const k = String(key || "").trim().toLowerCase();
+    if (!k) return null;
+    return ALL_PRODUCTS.find(p => p.ref && String(p.ref).trim().toLowerCase() === k)
+        || ALL_PRODUCTS.find(p => urlSlug(p.name) === urlSlug(k))
+        || ALL_PRODUCTS.find(p => String(p.id) === k) || null;
+  }
+  let urlTargetDone = false;
+  let urlSync = false;                      // la barra se actualiza solo después de leer el link de entrada
+  function openTargetFromURL() {           // una sola vez, al cargar la tienda desde un link compartido
+    if (urlTargetDone) return;
+    urlTargetDone = true; urlSync = true;
+    const params = new URLSearchParams(window.location.search);
+    const p = findProductFromKey(params.get("producto"));
+    if (p) { openModal(p); return; }
+    if (params.get("producto")) setURLParams({ producto: null });
+    if (params.get("categoria") && state.category !== "Todas") setTimeout(() => el.productGrid.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+  }
+  function shareLink(url, title, btn) {
+    const done = () => { if (btn) { const t = btn.textContent; btn.textContent = "✓ ¡Link copiado!"; setTimeout(() => { btn.textContent = t; }, 2200); } };
+    if (navigator.share) { navigator.share({ title, url }).catch(() => {}); return; }
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, () => window.prompt("Copia este link:", url));
+    else window.prompt("Copia este link:", url);
+  }
+
   // Flechas de "ver anteriores/siguientes" en carruseles horizontales
   document.addEventListener("click", e => {
     const btn = e.target.closest(".scroll-arrow");
@@ -675,6 +714,7 @@
 
   function render() {
     syncCategoryNav();
+    if (urlSync) setURLParams({ categoria: state.category !== "Todas" ? catLabel(state.category) : null });
     const list = getFilteredProducts();
     el.resultsCount.textContent = `Mostrando ${list.length} de ${PRODUCTS.length} productos`;
     if (!list.length) {
@@ -718,12 +758,24 @@
     el.modalAddCart.disabled = !avail;
     el.modalAddCart.textContent = avail ? "Agregar al carrito" : "Agotado";
 
+    let shareBtn = document.getElementById("modalShare");
+    if (!shareBtn && el.modalRef) {
+      shareBtn = document.createElement("button");
+      shareBtn.type = "button"; shareBtn.id = "modalShare"; shareBtn.className = "modal-share";
+      shareBtn.textContent = "🔗 Compartir este producto";
+      shareBtn.style.cssText = "display:inline-block;margin:-10px 0 16px;padding:7px 14px;border-radius:999px;border:1px solid currentColor;background:transparent;color:inherit;font:inherit;font-size:13px;cursor:pointer;opacity:.85";
+      shareBtn.addEventListener("click", () => { if (currentModalProduct) shareLink(window.location.href, currentModalProduct.name, shareBtn); });
+      el.modalRef.insertAdjacentElement("afterend", shareBtn);
+    }
+    setURLParams({ producto: productKey(p) });
+
     el.modalOverlay.hidden = false;
     document.body.style.overflow = "hidden";
   }
   function closeModal() {
     el.modalOverlay.hidden = true;
     document.body.style.overflow = "";
+    setURLParams({ producto: null });
   }
   el.modalClose.addEventListener("click", closeModal);
   el.modalOverlay.addEventListener("click", e => { if (e.target === el.modalOverlay) closeModal(); });
@@ -1521,6 +1573,7 @@
       PRODUCTS = visibleCatalog(ALL_PRODUCTS, cached.hide !== false);
       applyCategoryFromURL();
       paintStore(cached.banners || []);
+      openTargetFromURL();
       paintedSig = JSON.stringify([PRODUCTS, cached.banners || []]);
     }
     const [products, bannerData] = await Promise.all([fetchCatalog(), fetchBanners()]);   // 2) lo fresco
@@ -1533,6 +1586,7 @@
       const sig = JSON.stringify([PRODUCTS, bannerData]);
       if (paintedSig === null) { applyCategoryFromURL(); paintStore(bannerData); }
       else if (sig !== paintedSig) paintStore(bannerData);
+      openTargetFromURL();
     } else if (paintedSig === null) {                   // sin red y sin copia: como antes
       PRODUCTS = [];
       applyCategoryFromURL();
