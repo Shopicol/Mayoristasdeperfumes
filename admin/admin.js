@@ -740,6 +740,7 @@
   el.ordersMonth.addEventListener("change", () => { selectedMonth = el.ordersMonth.value; loadOrders(); });
 
   function renderOrders() {
+    updateSoldoutPanel();
     if (!allOrders.length) { el.ordersList.innerHTML = ""; el.ordersEmpty.textContent = `No hay pedidos en ${nombreMes(selectedMonth || mesVE())}.`; el.ordersEmpty.hidden = false; return; }
     el.ordersEmpty.hidden = true;
     el.ordersList.innerHTML = allOrders.map(o => {
@@ -755,7 +756,8 @@
             </select>
           </div>
           <p class="order-date">${date}</p>
-          <p class="order-items">${itemsText}</p>
+          ${orderItemsHtml(o, items, itemsText)}
+          ${orderSwapNoteHtml(o)}
           <p class="order-total">${money(o.total)}${Number(o.total_bs) > 0 ? ` <span class="order-bs">· Bs ${Number(o.total_bs).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (tasa ${Number(o.exchange_rate).toLocaleString("es-VE")})</span>` : ""}</p>
           <div class="order-pay-row">
             <span class="pay-badge ${o.payment_status || "pendiente"}">${PAY_LABELS[o.payment_status] || PAY_LABELS.pendiente}${o.payment_reference ? " · Ref " + o.payment_reference : ""}</span>
@@ -886,6 +888,172 @@
     const id = e.target.closest("[data-posgold]")?.dataset.posgold;
     if (id) downloadPosgoldExcel(id);
   });
+
+  /* ---------------------------------------------------------------
+     PRODUCTOS AGOTADOS EN PEDIDOS: aviso automático + cambio de perfume.
+     El cambio queda guardado en el pedido (items, total y Bs recalculados) y el Excel de PosGold
+     sale con el código del perfume nuevo, al precio nuevo.
+     --------------------------------------------------------------- */
+  (function injectSwapStyles() {
+    const st = document.createElement("style");
+    st.textContent = `
+    .oi-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 0; font-size:12.5px; }
+    .oi-row + .oi-row{ border-top:1px dashed #e5e5e0; }
+    .oi-row.agot{ background:#FEF2F2; border-radius:6px; padding:5px 8px; margin:2px 0; }
+    .oi-tag{ color:#B91C1C; font-size:11px; margin-left:4px; white-space:nowrap; }
+    .oi-sub{ color:#065F46; font-style:normal; font-size:11.5px; }
+    .oi-swap{ border:1px solid #d6d3c8; background:#fff; border-radius:6px; padding:3px 9px; font-size:12px; cursor:pointer; white-space:nowrap; }
+    .oi-row.agot .oi-swap{ background:#B91C1C; border-color:#B91C1C; color:#fff; font-weight:600; }
+    .order-swapnote{ background:#ECFDF5; border:1px solid #6EE7B7; color:#065F46; border-radius:8px; padding:8px 12px; font-size:12.5px; line-height:1.5; margin:8px 0 0; }
+    .soldout-panel{ background:#FEF2F2; border:1px solid #FCA5A5; color:#7F1D1D; border-radius:10px; padding:12px 14px; margin:0 0 14px; font-size:13px; line-height:1.55; }
+    .soldout-panel.low{ background:#FFFBEB; border-color:#FCD34D; color:#78350F; }
+    .soldout-panel ul{ margin:6px 0 0; padding-left:18px; }
+    .swap-ov{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:300; display:flex; align-items:center; justify-content:center; padding:12px; }
+    .swap-ov[hidden]{ display:none; }
+    .swap-box{ background:#fff; width:100%; max-width:560px; max-height:92vh; overflow:auto; border-radius:12px; padding:20px; }
+    .swap-box h3{ margin:0 0 4px; font-size:17px; } .swap-box p{ margin:4px 0; font-size:13px; }
+    .swap-box input[type=search], .swap-box input[type=number]{ width:100%; padding:9px 10px; border:1px solid #d6d3c8; border-radius:8px; font:inherit; box-sizing:border-box; }
+    .swap-list{ max-height:240px; overflow:auto; border:1px solid #e5e5e0; border-radius:8px; margin:8px 0; }
+    .swap-opt{ display:flex; justify-content:space-between; gap:10px; width:100%; text-align:left; border:0; background:#fff; padding:8px 10px; font:inherit; font-size:12.5px; cursor:pointer; }
+    .swap-opt + .swap-opt{ border-top:1px solid #eee; } .swap-opt:hover{ background:#f7f5ee; } .swap-opt.sel{ background:#FEF3C7; font-weight:600; }
+    .swap-sum{ background:#F5F5F0; border-radius:8px; padding:8px 10px; font-size:12.5px; margin:8px 0; line-height:1.5; }
+    .swap-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:10px; }
+    .swap-actions button{ padding:9px 16px; border-radius:8px; border:1px solid #d6d3c8; background:#fff; font:inherit; cursor:pointer; }
+    .swap-actions .go{ background:#111; color:#fff; border-color:#111; } .swap-actions .go:disabled{ opacity:.45; cursor:not-allowed; }
+    `;
+    document.head.appendChild(st);
+  })();
+
+  const swapEsc = s => String(s == null ? "" : s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  const prodOfItem = it => allProducts.find(pp => String(pp.id) === String(it.id)) || allProducts.find(pp => pp.name === it.name);
+  const prodOut = p => !!p && (!p.avail || (p.stock !== null && p.stock !== undefined && p.stock !== "" && Number(p.stock) <= 0));
+  const unitPrice = p => Number(p.offer) > 0 ? Number(p.offer) : Number(p.mayor) || 0;
+  const orderActive = o => o.status === "nuevo" || o.status === "tomado";
+
+  function orderItemsHtml(o, items, itemsText) {
+    if (!items.length) return `<p class="order-items">${swapEsc(itemsText)}</p>`;
+    const canEdit = orderActive(o);
+    return `<div class="order-items">${items.map((it, idx) => {
+      const p = prodOfItem(it), out = prodOut(p) && !isBoxItem(it);
+      return `<div class="oi-row${out ? " agot" : ""}"><span>${Number(it.qty) || 0}x ${swapEsc(it.name)}${out ? ` <b class="oi-tag">⚠ AGOTADO</b>` : ""}${it.replaced_from ? ` <em class="oi-sub">↔ sustituye a ${swapEsc(it.replaced_from)}</em>` : ""}</span>${canEdit && !isBoxItem(it) ? `<button type="button" class="oi-swap" data-swap="${o.id}|${idx}">🔄 Cambiar</button>` : ""}</div>`;
+    }).join("")}</div>`;
+  }
+  function orderSwapNoteHtml(o) {
+    const lines = String(o.note || "").split(/\r?\n/).filter(l => /^🔄/.test(l));
+    return lines.length ? `<p class="order-swapnote">${lines.map(swapEsc).join("<br>")}</p>` : "";
+  }
+
+  function updateSoldoutPanel() {
+    let box = document.getElementById("soldoutPanel");
+    if (!box) { box = document.createElement("div"); el.ordersList.parentNode.insertBefore(box, el.ordersList); box.id = "soldoutPanel"; }
+    const out = new Map(), low = new Map();
+    allOrders.filter(orderActive).forEach(o => (Array.isArray(o.items) ? o.items : []).forEach(it => {
+      if (isBoxItem(it)) return;
+      const p = prodOfItem(it); if (!p) return;
+      const bucket = prodOut(p) ? out : (p.stock !== null && p.stock !== undefined && p.stock !== "" && Number(p.stock) > 0 && Number(p.stock) <= 5 ? low : null);
+      if (!bucket) return;
+      const r = bucket.get(p.id) || { name: p.name, orders: new Set(), units: 0, stock: p.stock };
+      r.orders.add(o.id); r.units += Number(it.qty) || 0; bucket.set(p.id, r);
+    }));
+    const li = m => [...m.values()].map(r => `<li><strong>${swapEsc(r.name)}</strong> — ${r.orders.size} ${r.orders.size === 1 ? "pedido" : "pedidos"}, ${r.units} uds${r.stock != null && r.stock !== "" && Number(r.stock) > 0 ? ` (quedan ${r.stock})` : ""}</li>`).join("");
+    box.innerHTML = (out.size ? `<div class="soldout-panel">⚠ <strong>${out.size} ${out.size === 1 ? "perfume agotado está" : "perfumes agotados están"} en pedidos sin entregar.</strong> Usa «🔄 Cambiar» en cada pedido:<ul>${li(out)}</ul></div>` : "")
+      + (low.size ? `<div class="soldout-panel low">🟡 <strong>Se están acabando</strong> (quedan 5 o menos) y hay pedidos con ellos:<ul>${li(low)}</ul></div>` : "");
+  }
+
+  const swapUI = { ov: null, order: null, idx: 0, pick: null };
+  function swapOpen(orderId, idx) {
+    const o = allOrders.find(x => String(x.id) === String(orderId)); if (!o) return;
+    const it = (o.items || [])[idx]; if (!it) return;
+    swapUI.order = o; swapUI.idx = idx; swapUI.pick = null;
+    if (!swapUI.ov) {
+      swapUI.ov = document.createElement("div"); swapUI.ov.className = "swap-ov"; swapUI.ov.hidden = true;
+      swapUI.ov.innerHTML = `<div class="swap-box" role="dialog" aria-modal="true"></div>`;
+      document.body.appendChild(swapUI.ov);
+      swapUI.ov.addEventListener("click", swapClick);
+      swapUI.ov.addEventListener("input", e => { if (e.target.id === "swapSearch") swapPaintList(); if (e.target.id === "swapQty") swapPaintSummary(); });
+    }
+    const orig = prodOfItem(it);
+    swapUI.ov.firstChild.innerHTML = `
+      <h3>🔄 Cambiar un perfume del pedido</h3>
+      <p><strong>${Number(it.qty)}x ${swapEsc(it.name)}</strong> ${prodOut(orig) ? `<b class="oi-tag">⚠ AGOTADO</b>` : ""} — ${swapEsc(o.customer_name || "")}</p>
+      <label style="font-size:12.5px">Buscar el perfume de reemplazo</label>
+      <input type="search" id="swapSearch" placeholder="Nombre o referencia…" autocomplete="off">
+      <div class="swap-list" id="swapList"></div>
+      <label style="font-size:12.5px">¿Cuántas unidades cambias? (máx. ${Number(it.qty)}; si no hay reemplazo para todas, cambia unas aquí y el resto con otro perfume)</label>
+      <input type="number" id="swapQty" min="1" max="${Number(it.qty)}" value="${Number(it.qty)}">
+      <div class="swap-sum" id="swapSum">Elige el perfume nuevo de la lista.</div>
+      <label style="font-size:12.5px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="swapMark" ${orig && orig.avail ? "checked" : ""}> Marcar «${swapEsc(it.name)}» como NO disponible en la tienda</label>
+      <div class="swap-actions"><button type="button" data-swap-cancel>Cancelar</button><button type="button" class="go" id="swapGo" data-swap-go disabled>Confirmar cambio</button></div>`;
+    swapUI.ov.hidden = false;
+    swapPaintList();
+  }
+  function swapCandidates() {
+    const q = normName((document.getElementById("swapSearch") || {}).value || "");
+    const it = swapUI.order.items[swapUI.idx], orig = prodOfItem(it);
+    return allProducts.filter(p => p.category !== "Cajas / Combos" && p.avail && !prodOut(p) && unitPrice(p) > 0 && String(p.id) !== String(it.id)
+      && (!q || normName(p.name).includes(q) || normName(p.ref).includes(q)))
+      .sort((a, b) => ((orig && b.category === orig.category) - (orig && a.category === orig.category)) || a.name.localeCompare(b.name, "es"));
+  }
+  function swapPaintList() {
+    const list = swapCandidates().slice(0, 80);
+    document.getElementById("swapList").innerHTML = list.length ? list.map(p => `<button type="button" class="swap-opt${swapUI.pick && swapUI.pick.id === p.id ? " sel" : ""}" data-swap-pick="${p.id}"><span>${swapEsc(p.name)}</span><span>${money(unitPrice(p))}</span></button>`).join("") : `<p style="padding:10px">No hay perfumes disponibles con esa búsqueda.</p>`;
+  }
+  function swapCompute() {
+    const o = swapUI.order, it = o.items[swapUI.idx], p = swapUI.pick;
+    const q = Math.max(1, Math.min(Number(it.qty), parseInt((document.getElementById("swapQty") || {}).value, 10) || 0));
+    if (!p) return null;
+    const items = o.items.map(x => ({ ...x }));
+    const cur = items[swapUI.idx]; cur.qty = Number(cur.qty) - q;
+    const np = unitPrice(p);
+    const same = items.find((x, i) => i !== swapUI.idx && String(x.id) === String(p.id) && Number(x.price) === np);
+    if (same) same.qty = Number(same.qty) + q; else items.push({ id: p.id, name: p.name, qty: q, price: np, replaced_from: it.name });
+    const final = items.filter(x => Number(x.qty) > 0);
+    const subtotal = Math.round(final.reduce((s, x) => s + Number(x.qty) * Number(x.price), 0) * 100) / 100;
+    const total = Math.max(0, Math.round((subtotal - (Number(o.discount) || 0)) * 100) / 100);
+    const bs = Number(o.total_bs) > 0 && Number(o.exchange_rate) > 0 ? Math.round(total * Number(o.exchange_rate) * 100) / 100 : null;
+    return { q, items: final, subtotal, total, bs, np };
+  }
+  function swapPaintSummary() {
+    const r = swapCompute(), o = swapUI.order, it = o.items[swapUI.idx], go = document.getElementById("swapGo");
+    if (!r) { go.disabled = true; return; }
+    const diff = Math.round((r.total - Number(o.total)) * 100) / 100;
+    document.getElementById("swapSum").innerHTML = `${r.q} × <strong>${swapEsc(swapUI.pick.name)}</strong> a ${money(r.np)} c/u (antes ${money(it.price)}).<br>Total del pedido: ${money(o.total)} → <strong>${money(r.total)}</strong>${diff ? ` (${diff > 0 ? "+" : ""}${money(diff).replace("$-", "-$")})` : " (sin cambio)"}${r.bs != null ? ` · Bs ${r.bs.toLocaleString("es-VE", { minimumFractionDigits: 2 })}` : ""}${diff ? `<br>⚠ El total cambia: avísale al cliente.` : ""}`;
+    go.disabled = false;
+  }
+  async function swapConfirm() {
+    const r = swapCompute(); if (!r) return;
+    const o = swapUI.order, it = o.items[swapUI.idx], p = swapUI.pick;
+    const stamp = new Date().toLocaleString("es-VE", { dateStyle: "short", timeStyle: "short" });
+    const line = `🔄 ${stamp}: ${r.q} × ${it.name} → ${p.name}${Number(it.price) !== r.np ? ` (precio ${money(it.price)} → ${money(r.np)})` : ""}`;
+    const patch = { items: r.items, subtotal: r.subtotal, total: r.total, note: (o.note ? o.note + "\n" : "") + line };
+    if (r.bs != null) patch.total_bs = r.bs;
+    const go = document.getElementById("swapGo"); go.disabled = true; go.textContent = "Guardando…";
+    const { data, error } = await supabaseClient.from("orders").update(patch).eq("id", o.id).select("*").single();
+    if (error) { go.disabled = false; go.textContent = "Confirmar cambio"; showToast("No se pudo guardar el cambio: " + error.message, true); return; }
+    Object.assign(o, data || patch);
+    if (document.getElementById("swapMark").checked) {
+      const orig = prodOfItem(it);
+      if (orig && orig.avail) {
+        const { error: e2 } = await supabaseClient.from("products").update({ avail: false }).eq("id", orig.id);
+        if (e2) showToast("Cambio guardado, pero no se pudo marcar el producto como agotado: " + e2.message, true);
+        else { orig.avail = false; try { if (typeof paintStats === "function") paintStats(); if (typeof renderTable === "function") renderTable(); } catch (e) {} }
+      }
+    }
+    swapUI.ov.hidden = true;
+    renderOrders();
+    showToast("Cambio guardado ✓ El Excel de PosGold ya sale con el perfume nuevo");
+  }
+  function swapClick(e) {
+    if (e.target === swapUI.ov || e.target.closest("[data-swap-cancel]")) { swapUI.ov.hidden = true; return; }
+    const pk = e.target.closest("[data-swap-pick]");
+    if (pk) { swapUI.pick = allProducts.find(x => String(x.id) === pk.dataset.swapPick); swapPaintList(); swapPaintSummary(); return; }
+    if (e.target.closest("[data-swap-go]")) swapConfirm();
+  }
+  el.ordersList.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-swap]"); if (!b) return;
+    const [oid, idx] = b.dataset.swap.split("|"); swapOpen(oid, parseInt(idx, 10));
+  });
+
   // Comprobante de pago: está en una carpeta privada, así que se abre con un enlace temporal (10 min)
   el.ordersList.addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-proof]");
@@ -913,6 +1081,7 @@
     if (error) { showToast("No se pudo actualizar: " + error.message, true); return; }
     const o = allOrders.find(x => String(x.id) === id);
     if (o) o.status = e.target.value;
+    renderOrders();
     refreshPending(); loadTodaySales(); loadMonthSummary(); invalidateClients();
     showToast("Estado actualizado");
   });
