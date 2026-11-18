@@ -423,6 +423,8 @@
     else if (e.target.closest("[data-box-back]")) { boxUI.step = boxUI.step === 3 ? 2 : 1; boxUI.result = null; boxRender(); }
   });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !boxEl.ov.hidden) boxClose(); });
+  // Link directo para redes/WhatsApp: tutienda.com/#armar-caja abre el armador
+  window.addEventListener("load", () => { if (/armar-caja/i.test(location.hash)) setTimeout(boxOpen, 1200); });
   window.__mpvBox = { buildCustomBox, BOX_BUDGETS, BOX_PREFS, setProducts: p => { PRODUCTS = p; } };
 
   /* ---------------------------------------------------------------
@@ -649,6 +651,7 @@
   }
   function openBannerLink(link) {
     if (link.startsWith("categoria:")) { goCategory(link.slice(10).trim()); return; }
+    if (/armar-caja/i.test(link)) { boxOpen(); return; }          // banner → abre el armador de cajas
     if (/^https?:\/\//i.test(link) && !link.startsWith(window.location.origin)) window.open(link, "_blank", "noopener");
     else window.location.href = link;
   }
