@@ -216,7 +216,15 @@
   }
   function cumpleMinimo() { return Object.keys(loadCart()).length > 0 && minimoFaltante() === 0; }
 
+  // Busca el producto aunque ya no se vea en el catálogo (porque se agotó)
+  function findAnyProduct(id) {
+    return PRODUCTS.find(pp => String(pp.id) === String(id)) || ALL_PRODUCTS.find(pp => String(pp.id) === String(id)) || null;
+  }
+  function cartOutIds() {
+    return Object.keys(loadCart()).filter(id => { const p = findAnyProduct(id); return p && !isEffectivelyAvailable(p); });
+  }
   function renderCartPanel() {
+    { const c0 = loadCart(); let dirty = false; Object.keys(c0).forEach(id => { if (ALL_PRODUCTS.length && !findAnyProduct(id)) { delete c0[id]; dirty = true; } }); if (dirty) { saveCart(c0); updateCartBadge(); } }   // productos que ya no existen
     const cart = loadCart();
     const entries = Object.entries(cart);
     if (!entries.length) {
@@ -231,15 +239,17 @@
 
     el.cartItems.innerHTML = entries.map(([key, qty]) => {
       const { id } = parseCartKey(key);
-      const p = PRODUCTS.find(pp => String(pp.id) === String(id));
+      const p = findAnyProduct(id);
       if (!p) return "";
+      const out = !isEffectivelyAvailable(p);
       const price = p.offer || p.mayor || 0;
       return `
-        <div class="cart-line">
-          <img src="${p.image || ''}" alt="${p.name}">
+        <div class="cart-line${out ? " is-out" : ""}">
+          <img src="${p.image || ''}" alt="${esc(p.name)}">
           <div style="flex:1">
-            <p class="cart-line-name">${p.name}</p>
+            <p class="cart-line-name">${esc(p.name)}</p>
             <p class="cart-line-price">${money(price)} × ${qty}</p>
+            ${out ? `<p class="cart-out-msg">⚠ Este perfume se agotó. <button type="button" class="cart-swap-btn" data-cart-swap="${esc(id)}">🔄 Cambiar por otro</button></p>` : ""}
           </div>
           <div class="qty-stepper">
             <button type="button" data-cart-minus="${id}">−</button>
@@ -266,9 +276,11 @@
     }
 
     el.cartTotal.textContent = money(cartTotal());
+    const outN = cartOutIds().length;
     const faltan = minimoFaltante();                                   // sin el mínimo no se puede continuar ni se ven los datos de pago
-    el.checkoutBtn.disabled = faltan > 0;
-    el.checkoutBtn.textContent = faltan > 0 ? `Agrega ${faltan} ${faltan === 1 ? "perfume más" : "perfumes más"} para continuar` : "Continuar pedido";
+    el.checkoutBtn.disabled = faltan > 0 || outN > 0;
+    if (outN > 0) el.checkoutBtn.textContent = "Cambia o quita los agotados para continuar";
+    else el.checkoutBtn.textContent = faltan > 0 ? `Agrega ${faltan} ${faltan === 1 ? "perfume más" : "perfumes más"} para continuar` : "Continuar pedido";
   }
 
   el.cartItems.addEventListener("click", e => {
@@ -357,6 +369,57 @@
     return best ? { lines: best.chosen, total: best.total } : null;
   }
 
+
+  /* ---------------------------------------------------------------
+     Lista para CAMBIAR un perfume por otro disponible (carrito y caja personalizada)
+     --------------------------------------------------------------- */
+  const pick = { ov: null, from: null, exclude: new Set(), onPick: null };
+  function openPicker(fromProduct, exclude, onPick) {
+    pick.from = fromProduct; pick.exclude = new Set((exclude || []).map(String)); pick.onPick = onPick;
+    if (!pick.ov) {
+      pick.ov = document.createElement("div");
+      pick.ov.className = "cart-overlay box-overlay pick-overlay"; pick.ov.hidden = true;
+      pick.ov.innerHTML = `<div class="box-modal" role="dialog" aria-modal="true"><button type="button" class="box-close" data-pick-close aria-label="Cerrar">×</button><h3>🔄 Elige otro perfume</h3><p class="box-note" id="pickFrom"></p><input type="search" id="pickSearch" class="pick-search" placeholder="Buscar por nombre o referencia…" autocomplete="off"><div class="box-list" id="pickList"></div></div>`;
+      document.body.appendChild(pick.ov);
+      pick.ov.addEventListener("click", e => {
+        if (e.target === pick.ov || e.target.closest("[data-pick-close]")) { pick.ov.hidden = true; return; }
+        const b = e.target.closest("[data-pick-id]");
+        if (b) { const p = ALL_PRODUCTS.find(x => String(x.id) === b.dataset.pickId); pick.ov.hidden = true; if (p && pick.onPick) pick.onPick(p); }
+      });
+      pick.ov.addEventListener("input", e => { if (e.target.id === "pickSearch") paintPicker(); });
+    }
+    document.getElementById("pickFrom").innerHTML = `Vas a cambiar: <strong>${esc(fromProduct.name)}</strong>. Solo salen perfumes disponibles.`;
+    document.getElementById("pickSearch").value = "";
+    paintPicker();
+    pick.ov.hidden = false;
+  }
+  function paintPicker() {
+    const q = normalize(document.getElementById("pickSearch").value);
+    const f = pick.from, fp = Number(f.offer) > 0 ? Number(f.offer) : Number(f.mayor) || 0;
+    const pr = p => Number(p.offer) > 0 ? Number(p.offer) : Number(p.mayor) || 0;
+    const list = PRODUCTS.filter(p => p.category !== "Cajas / Combos" && isEffectivelyAvailable(p) && String(p.id) !== String(f.id) && !pick.exclude.has(String(p.id)) && (p.min_qty || 12) > 1
+      && (!q || normalize(p.name).includes(q) || normalize(p.ref).includes(q)))
+      .sort((a, b) => ((b.category === f.category) - (a.category === f.category)) || Math.abs(pr(a) - fp) - Math.abs(pr(b) - fp) || a.name.localeCompare(b.name, "es"))
+      .slice(0, 80);
+    document.getElementById("pickList").innerHTML = list.length
+      ? list.map(p => `<button type="button" class="pick-opt" data-pick-id="${esc(p.id)}"><img src="${esc(p.image || "")}" alt="" loading="lazy"><span class="nm">${esc(p.name)}</span><span class="pr">${money(pr(p))}</span></button>`).join("")
+      : `<p class="box-note" style="padding:12px">No hay perfumes disponibles con esa búsqueda.</p>`;
+  }
+  // Carrito: cambiar un perfume agotado por otro (se conserva la cantidad)
+  el.cartItems.addEventListener("click", e => {
+    const id = e.target.closest("[data-cart-swap]")?.dataset.cartSwap;
+    if (!id) return;
+    const from = findAnyProduct(id); if (!from) return;
+    openPicker(from, Object.keys(loadCart()), np => {
+      const cart = loadCart(), qty = cart[cartKey(id)] || 1;
+      delete cart[cartKey(id)];
+      cart[cartKey(np.id)] = (cart[cartKey(np.id)] || 0) + qty;
+      saveCart(cart);
+      try { const m = JSON.parse(localStorage.getItem(BOX_KEY) || "null"); if (m && Array.isArray(m.ids)) { m.ids = m.ids.map(x => String(x) === String(id) ? String(np.id) : x); localStorage.setItem(BOX_KEY, JSON.stringify(m)); } } catch (e) {}
+      updateCartBadge(); renderCartPanel();
+    });
+  });
+
   const boxUI = { step: 1, budget: null, pref: null, result: null };
   const boxEl = { ov: document.getElementById("boxOverlay"), body: document.getElementById("boxBody"), steps: document.getElementById("boxSteps") };
 
@@ -377,8 +440,8 @@
         const units = r.lines.reduce((s, l) => s + l.qty, 0);
         boxEl.body.innerHTML = `
           <div class="box-summary"><span>${units} perfumes · ${esc(boxUI.pref.label)}</span><b>${money(r.total)}</b></div>
-          <ul class="box-list">${r.lines.map(l => `<li><img src="${esc(l.p.image || "")}" alt="" loading="lazy"><span class="nm">${esc(l.p.name)}${l.qty > 1 ? ` × ${l.qty}` : ""}</span><span class="pr">${money(boxPrice(l.p) * l.qty)}</span></li>`).join("")}</ul>
-          <p class="box-note">Armada con lo disponible hoy, a precio al mayor. Se agregan al carrito como perfumes individuales; puedes quitar o cambiar los que quieras antes de pedir.</p>
+          <ul class="box-list">${r.lines.map(l => `<li><img src="${esc(l.p.image || "")}" alt="" loading="lazy"><span class="nm">${esc(l.p.name)}${l.qty > 1 ? ` × ${l.qty}` : ""}</span><span class="pr">${money(boxPrice(l.p) * l.qty)}</span><button type="button" class="box-swap" data-box-swap="${r.lines.indexOf(l)}" title="Cambiar este perfume">🔄</button></li>`).join("")}</ul>
+          <p class="box-note">Armada con lo disponible hoy, a precio al mayor. Se agregan al carrito como perfumes individuales; puedes cambiar cualquiera con el botón 🔄 antes de pedir. Si cambias perfumes, el total puede salirse un poco de tu presupuesto.</p>
           <div class="box-actions">
             <button type="button" class="btn-primary" data-box-add>Agregar esta caja al carrito</button>
             <button type="button" class="btn-secondary" data-box-again>🔄 Armar otra distinta</button>
@@ -418,11 +481,15 @@
     const b = e.target.closest("[data-box-budget]"), pf = e.target.closest("[data-box-pref]");
     if (b) { boxUI.budget = BOX_BUDGETS.find(x => x.id === b.dataset.boxBudget); boxUI.step = 2; boxRender(); }
     else if (pf) { boxUI.pref = BOX_PREFS.find(x => x.id === pf.dataset.boxPref); boxGenerate(); }
+    else if (e.target.closest("[data-box-swap]")) {
+      const i = parseInt(e.target.closest("[data-box-swap]").dataset.boxSwap, 10), r = boxUI.result;
+      if (r && r.lines[i]) openPicker(r.lines[i].p, r.lines.map(l => l.p.id), np => { r.lines[i].p = np; r.total = round2(r.lines.reduce((s2, l) => s2 + boxPrice(l.p) * l.qty, 0)); boxRender(); });
+    }
     else if (e.target.closest("[data-box-again]")) boxGenerate();
     else if (e.target.closest("[data-box-add]")) boxAddToCart();
     else if (e.target.closest("[data-box-back]")) { boxUI.step = boxUI.step === 3 ? 2 : 1; boxUI.result = null; boxRender(); }
   });
-  document.addEventListener("keydown", e => { if (e.key === "Escape" && !boxEl.ov.hidden) boxClose(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { if (pick.ov && !pick.ov.hidden) pick.ov.hidden = true; else if (!boxEl.ov.hidden) boxClose(); } });
   // Link directo para redes/WhatsApp: tutienda.com/#armar-caja abre el armador
   window.addEventListener("load", () => { if (/armar-caja/i.test(location.hash)) setTimeout(boxOpen, 1200); });
   window.__mpvBox = { buildCustomBox, BOX_BUDGETS, BOX_PREFS, setProducts: p => { PRODUCTS = p; } };
@@ -1197,6 +1264,11 @@
       return;
     }
 
+    if (cartOutIds().length) {
+      el.checkoutError.textContent = "Hay perfumes agotados en tu carrito. Ciérralo y cámbialos por otros (botón «Cambiar por otro») o quítalos.";
+      el.checkoutError.hidden = false;
+      return;
+    }
     const cart = loadCart();
     const entries = Object.entries(cart);
     if (!entries.length) {
@@ -1381,11 +1453,12 @@
   // ¿Se ocultan los agotados? (interruptor de Ajustes en el admin; por defecto, sí)
   const visibleCatalog = (all, hide) => (hide ? all.filter(isEffectivelyAvailable) : all);
   const hideSoldOutNow = () => !(siteSettings && siteSettings.hide_soldout === false);
-  // Si un producto del carrito ya no se ve (agotado o borrado), se quita para que el contador y el total cuadren
+  // Solo se quitan del carrito los productos que YA NO EXISTEN. Los agotados se conservan marcados
+  // en el carrito para que el cliente los cambie por otro (antes se borraban en silencio).
   function pruneCart() {
     if (!PRODUCTS.length) return;
     const cart = loadCart(); let changed = false;
-    Object.keys(cart).forEach(k => { if (!PRODUCTS.some(p => String(p.id) === String(parseCartKey(k).id))) { delete cart[k]; changed = true; } });
+    Object.keys(cart).forEach(k => { if (!ALL_PRODUCTS.some(p => String(p.id) === String(parseCartKey(k).id))) { delete cart[k]; changed = true; } });
     if (changed) saveCart(cart);
   }
   let settingsReady = Promise.resolve(null);

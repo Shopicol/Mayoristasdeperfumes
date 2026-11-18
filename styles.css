@@ -651,3 +651,17 @@ input, select, textarea{ font-family:inherit; }
 .pay-priority.sm strong{ font-size:14px; } .pay-priority.sm span:not(.pp-ico){ font-size:12px; margin-top:2px; }
 .success-priority{ background:#111; color:#F3D98B; border:2px solid var(--gold); border-radius:6px; padding:12px 14px; font-weight:700; font-size:14px; line-height:1.4; margin:0 0 12px; }
 @media (max-width:760px){ .pay-priority strong{ font-size:15px; } }
+
+/* ============ CAMBIAR PERFUME AGOTADO / DE LA CAJA ============ */
+.pick-overlay{ z-index:140; }
+.pick-search{ width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:4px; font:inherit; margin:0 0 10px; }
+.pick-opt{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:#fff; border:0; border-top:1px solid var(--line); padding:7px 10px; cursor:pointer; font:inherit; font-size:13px; }
+.pick-opt:first-child{ border-top:0; } .pick-opt:hover{ background:#FBF6E6; }
+.pick-opt img{ width:38px; height:38px; object-fit:cover; border-radius:3px; background:#f3f3f1; flex:0 0 auto; }
+.pick-opt .nm{ flex:1; min-width:0; line-height:1.3; } .pick-opt .pr{ font-weight:600; white-space:nowrap; }
+.box-swap{ border:1px solid var(--line); background:#fff; border-radius:4px; width:32px; height:32px; cursor:pointer; flex:0 0 auto; font-size:14px; }
+.box-swap:hover{ border-color:var(--gold); background:#FBF6E6; }
+.cart-line.is-out{ background:#FEF2F2; border-radius:4px; padding-left:8px; padding-right:8px; }
+.cart-line.is-out img{ opacity:.55; filter:grayscale(1); }
+.cart-out-msg{ margin:4px 0 0; font-size:12.5px; color:#B91C1C; font-weight:600; line-height:1.4; }
+.cart-swap-btn{ display:inline-block; margin-top:4px; background:#B91C1C; color:#fff; border:0; border-radius:4px; padding:6px 10px; font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; }
