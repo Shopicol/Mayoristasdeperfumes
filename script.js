@@ -1285,6 +1285,7 @@
       lines.push(`Teléfono: ${order.phone}`);
       lines.push(`Ciudad: ${order.city}`);
       lines.push(`Método de pago: ${order.payment_method}`);
+      if (order.payment_status === "por_verificar") lines.push(`⚡ PEDIDO PAGADO — se despacha por orden de llegada`);
       if (order.payment_status === "por_verificar") lines.push(`💳 PAGO REPORTADO — Referencia: ${order.payment_reference}`);
       else lines.push(`⏳ PAGO PENDIENTE (pagará después)`);
       if (proofPath) lines.push(`📎 Comprobante: subido en la web (míralo en tu admin)`);
@@ -1658,6 +1659,11 @@
     return grupos.map(g => `${g.ini === g.fin ? DIA_CORTO[g.ini] : DIA_CORTO[g.ini] + " a " + DIA_CORTO[g.fin]}: ${g.t}`).join(" · ");
   }
   function pintarHorarioExito(pedido) {
+    let pri = document.getElementById("successPriority");
+    if (!pri) { pri = document.createElement("div"); pri.id = "successPriority"; pri.className = "success-priority"; el.successLead.parentNode.insertBefore(pri, el.successLead); }
+    pri.textContent = pedido && pedido.payment_status === "por_verificar"
+      ? "⚡ ¡Tu pedido va pago! Sale de primero: los pedidos pagados se despachan por orden de llegada."
+      : "⚡ Recuerda: los pedidos pagados salen de primero. Cuando pagues, avísale a tu asesora por WhatsApp y tu pedido entra a despacho.";
     el.successHours.hidden = true; el.successSchedule.hidden = true;
     el.successLead.textContent = "Te vamos a escribir por WhatsApp para confirmar tu pedido.";
     if (siteSettings && siteSettings.hours_enabled === false) return;

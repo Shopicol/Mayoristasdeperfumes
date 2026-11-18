@@ -220,6 +220,7 @@
     <p class="cart-min-progress" id="cartMinProgress" hidden></p>
     <p class="cart-empty" id="cartEmpty" hidden>Tu carrito está vacío.</p>
     <div class="cart-footer" id="cartFooter" hidden>
+      <div class="pay-priority sm" role="note"><span class="pp-ico" aria-hidden="true">⚡</span><div><strong>Paga ahora y tu pedido sale de primero</strong><span>Los pedidos pagados se despachan por orden de llegada.</span></div></div>
       <div class="cart-total-row">
         <span>Total</span>
         <strong id="cartTotal">$0.00</strong>
@@ -311,6 +312,10 @@
           <span>Correo (opcional)</span>
           <input type="email" id="custEmail" placeholder="Ej: maria@ejemplo.com">
         </label>
+        <div class="pay-priority" role="note">
+          <span class="pp-ico" aria-hidden="true">⚡</span>
+          <div><strong>PAGA AHORA Y TU PEDIDO SALE DE PRIMERO</strong><span>Los pedidos pagados se despachan por orden de llegada. Los que quedan pendientes de pago esperan hasta que paguen.</span></div>
+        </div>
         <label>
           <span>Método de pago *</span>
           <select id="custPayment" required>
