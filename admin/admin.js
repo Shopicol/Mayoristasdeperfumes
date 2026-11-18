@@ -764,6 +764,7 @@
             </select>
           </div>
           ${o.advisor_name ? `<p class="order-advisor">Asesora: ${o.advisor_name}${({ link: " · por su link personal", recordada: " · la recordó la tienda y el cliente la confirmó", elegida: " · la eligió el cliente", turno: " · asignada por turno" })[o.assigned_by] || ""}</p>` : ""}
+          ${/CAJA PERSONALIZADA/.test(o.note || "") ? `<p class="order-boxes">🎁 <strong>Caja personalizada del cliente:</strong> ${String(o.note).split(/\r?\n/).filter(l => /CAJA PERSONALIZADA/.test(l)).join(" ").replace(/^.*?CAJA PERSONALIZADA\s*—\s*/, "").replace(/</g, "&lt;")}<br>✅ Todos sus perfumes salen uno por uno en el Excel de PosGold.</p>` : ""}
           <p class="order-meta">${o.payment_method || ""} · ${o.delivery_method || ""} · ${o.city || ""}${o.address ? " — " + o.address : ""}</p>
           ${(() => { const bx = (Array.isArray(o.items) ? o.items : []).filter(isBoxItem); if (!bx.length) return ""; const auto = bx.filter(it => expandBox(it)), man = bx.filter(it => !expandBox(it)); const extra = auto.flatMap(it => expandBox(it).manual); return (auto.length ? `<p class="order-boxes">📦 <strong>Cajas desglosadas en el Excel de PosGold:</strong> ${auto.map(it => `${it.name} × ${Number(it.qty) || 0}`).join(" · ")}${extra.length ? ` <br>✋ <strong>A mano:</strong> ${extra.join(" · ")}` : ""}</p>` : "") + (man.length ? `<p class="order-boxes">📦 <strong>Cajas para agregar a mano en PosGold:</strong> ${man.map(it => `${it.name} × ${Number(it.qty) || 0}`).join(" · ")}</p>` : ""); })()}
           <div class="order-actions">
