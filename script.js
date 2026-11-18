@@ -220,8 +220,46 @@
   function findAnyProduct(id) {
     return PRODUCTS.find(pp => String(pp.id) === String(id)) || ALL_PRODUCTS.find(pp => String(pp.id) === String(id)) || null;
   }
+  /* Cajas fijas (por unidad): si un perfume de su contenido se agotó, el cliente lo cambia por otro.
+     El cambio se guarda aparte (mpv_boxsubs_v1) y viaja en la nota del pedido. */
+  const SUBS_KEY = "mpv_boxsubs_v1";
+  function loadSubs() { try { return JSON.parse(localStorage.getItem(SUBS_KEY)) || {}; } catch (e) { return {}; } }
+  function saveSubs(x) { try { localStorage.setItem(SUBS_KEY, JSON.stringify(x)); } catch (e) {} }
+  const isBoxProduct = p => !!p && p.category === "Cajas / Combos";
+  function boxContents(box) {
+    const out = [];
+    String(box.note || "").split(/\r?\n/).forEach(line => {
+      const m = line.match(/^\s*[•\-*]\s*(\d+)\s*[×xX]\s*(.+?)\s*$/); if (!m) return;
+      const name = m[2].replace(/\s*\((?:sabores?\s+)?a\s+elecci[oó]n\)\s*$/i, "");
+      const p = ALL_PRODUCTS.find(pp => pp.category !== "Cajas / Combos" && normalize(pp.name) === normalize(name));
+      if (p) out.push({ qty: Number(m[1]) || 0, p });
+    });
+    return out;
+  }
+  // Perfumes agotados dentro de una caja, con su reemplazo si ya lo eligió
+  function boxStatus(box) {
+    const subs = loadSubs()[box.id] || {}, res = [];
+    boxContents(box).forEach(c => {
+      if (isEffectivelyAvailable(c.p)) return;
+      const to = subs[c.p.id] ? findAnyProduct(subs[c.p.id]) : null;
+      res.push({ from: c.p, to: to && isEffectivelyAvailable(to) ? to : null });
+    });
+    return res;
+  }
+  function boxSubsNote(cart) {
+    const subs = loadSubs(), lines = [];
+    Object.keys(cart).forEach(id => {
+      const b = findAnyProduct(id); if (!isBoxProduct(b)) return;
+      boxStatus(b).forEach(st => { if (st.to) lines.push(`🔁 CAJA «${b.name}»: «${st.from.name}» → «${st.to.name}» (${cart[id]} ${cart[id] === 1 ? "caja" : "cajas"})`); });
+    });
+    return lines.join("\n");
+  }
   function cartOutIds() {
-    return Object.keys(loadCart()).filter(id => { const p = findAnyProduct(id); return p && !isEffectivelyAvailable(p); });
+    return Object.keys(loadCart()).filter(id => {
+      const p = findAnyProduct(id); if (!p) return false;
+      if (!isEffectivelyAvailable(p)) return true;
+      return isBoxProduct(p) && boxStatus(p).some(st => !st.to);
+    });
   }
   function renderCartPanel() {
     { const c0 = loadCart(); let dirty = false; Object.keys(c0).forEach(id => { if (ALL_PRODUCTS.length && !findAnyProduct(id)) { delete c0[id]; dirty = true; } }); if (dirty) { saveCart(c0); updateCartBadge(); } }   // productos que ya no existen
@@ -249,7 +287,8 @@
           <div style="flex:1">
             <p class="cart-line-name">${esc(p.name)}</p>
             <p class="cart-line-price">${money(price)} × ${qty}</p>
-            ${out ? `<p class="cart-out-msg">⚠ Este perfume se agotó. <button type="button" class="cart-swap-btn" data-cart-swap="${esc(id)}">🔄 Cambiar por otro</button></p>` : ""}
+            ${out ? (isBoxProduct(p) ? `<p class="cart-out-msg">⚠ Esta caja ya no está disponible. Quítala del carrito.</p>` : `<p class="cart-out-msg">⚠ Este perfume se agotó. <button type="button" class="cart-swap-btn" data-cart-swap="${esc(id)}">🔄 Cambiar por otro</button></p>`) : ""}
+            ${!out && isBoxProduct(p) ? boxStatus(p).map(st => st.to ? `<p class="cart-sub-ok">✓ ${esc(st.from.name)} → <strong>${esc(st.to.name)}</strong> <button type="button" class="cart-swap-btn alt" data-cart-boxswap="${esc(id)}|${esc(st.from.id)}">cambiar</button></p>` : `<p class="cart-out-msg">⚠ En esta caja se agotó <strong>${esc(st.from.name)}</strong>. <button type="button" class="cart-swap-btn" data-cart-boxswap="${esc(id)}|${esc(st.from.id)}">🔄 Cambiar por otro</button></p>`).join("") : ""}
           </div>
           <div class="qty-stepper">
             <button type="button" data-cart-minus="${id}">−</button>
@@ -417,6 +456,19 @@
       saveCart(cart);
       try { const m = JSON.parse(localStorage.getItem(BOX_KEY) || "null"); if (m && Array.isArray(m.ids)) { m.ids = m.ids.map(x => String(x) === String(id) ? String(np.id) : x); localStorage.setItem(BOX_KEY, JSON.stringify(m)); } } catch (e) {}
       updateCartBadge(); renderCartPanel();
+    });
+  });
+
+  // Caja por unidad: cambiar un perfume agotado de su contenido
+  el.cartItems.addEventListener("click", e => {
+    const v = e.target.closest("[data-cart-boxswap]")?.dataset.cartBoxswap;
+    if (!v) return;
+    const [boxId, fromId] = v.split("|");
+    const box = findAnyProduct(boxId), from = findAnyProduct(fromId); if (!box || !from) return;
+    const subs = loadSubs(), mine = subs[box.id] || {};
+    openPicker(from, [...boxContents(box).map(c => c.p.id), ...Object.values(mine)], np => {
+      const all = loadSubs(); all[box.id] = Object.assign({}, all[box.id] || {}, { [from.id]: np.id }); saveSubs(all);
+      renderCartPanel();
     });
   });
 
@@ -1338,7 +1390,7 @@
       assigned_by: advisorHow,
       advisor_phone: chosenAdvisor ? chosenAdvisor.phone : "",
     };
-    { const boxNote = boxOrderNote(cart); if (boxNote) order.note = boxNote; }
+    { const notes = [boxOrderNote(cart), boxSubsNote(cart)].filter(Boolean).join("\n"); if (notes) order.note = notes; }
 
     try {
       await createOrder(order);

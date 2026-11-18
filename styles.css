@@ -665,3 +665,6 @@ input, select, textarea{ font-family:inherit; }
 .cart-line.is-out img{ opacity:.55; filter:grayscale(1); }
 .cart-out-msg{ margin:4px 0 0; font-size:12.5px; color:#B91C1C; font-weight:600; line-height:1.4; }
 .cart-swap-btn{ display:inline-block; margin-top:4px; background:#B91C1C; color:#fff; border:0; border-radius:4px; padding:6px 10px; font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; }
+
+.cart-sub-ok{ margin:4px 0 0; font-size:12.5px; color:#065F46; line-height:1.4; }
+.cart-swap-btn.alt{ background:#fff; color:#555; border:1px solid var(--line); padding:2px 8px; font-weight:500; margin-left:4px; }
