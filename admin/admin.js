@@ -768,7 +768,7 @@
           ${o.advisor_name ? `<p class="order-advisor">Asesora: ${o.advisor_name}${({ link: " · por su link personal", recordada: " · la recordó la tienda y el cliente la confirmó", elegida: " · la eligió el cliente", turno: " · asignada por turno" })[o.assigned_by] || ""}</p>` : ""}
           ${/CAJA PERSONALIZADA/.test(o.note || "") ? `<p class="order-boxes">🎁 <strong>Caja personalizada del cliente:</strong> ${String(o.note).split(/\r?\n/).filter(l => /CAJA PERSONALIZADA/.test(l)).join(" ").replace(/^.*?CAJA PERSONALIZADA\s*—\s*/, "").replace(/</g, "&lt;")}<br>✅ Todos sus perfumes salen uno por uno en el Excel de PosGold.</p>` : ""}
           <p class="order-meta">${o.payment_method || ""} · ${o.delivery_method || ""} · ${o.city || ""}${o.address ? " — " + o.address : ""}</p>
-          ${(() => { const bx = (Array.isArray(o.items) ? o.items : []).filter(isBoxItem); if (!bx.length) return ""; const auto = bx.filter(it => expandBox(it)), man = bx.filter(it => !expandBox(it)); const extra = auto.flatMap(it => expandBox(it).manual); return (auto.length ? `<p class="order-boxes">📦 <strong>Cajas desglosadas en el Excel de PosGold:</strong> ${auto.map(it => `${it.name} × ${Number(it.qty) || 0}`).join(" · ")}${extra.length ? ` <br>✋ <strong>A mano:</strong> ${extra.join(" · ")}` : ""}</p>` : "") + (man.length ? `<p class="order-boxes">📦 <strong>Cajas para agregar a mano en PosGold:</strong> ${man.map(it => `${it.name} × ${Number(it.qty) || 0}`).join(" · ")}</p>` : ""); })()}
+          ${(() => { const bx = (Array.isArray(o.items) ? o.items : []).filter(isBoxItem); if (!bx.length) return ""; const auto = bx.filter(it => expandBox(it, o)), man = bx.filter(it => !expandBox(it, o)); const extra = auto.flatMap(it => expandBox(it, o).manual); return (auto.length ? `<p class="order-boxes">📦 <strong>Cajas desglosadas en el Excel de PosGold:</strong> ${auto.map(it => `${it.name} × ${Number(it.qty) || 0}`).join(" · ")}${extra.length ? ` <br>✋ <strong>A mano:</strong> ${extra.join(" · ")}` : ""}</p>` : "") + (man.length ? `<p class="order-boxes">📦 <strong>Cajas para agregar a mano en PosGold:</strong> ${man.map(it => `${it.name} × ${Number(it.qty) || 0}`).join(" · ")}</p>` : ""); })()}
           <div class="order-actions">
             <button type="button" class="posgold-btn" data-posgold="${o.id}">⬇ Excel para PosGold</button>
             ${o.payment_proof_path ? `<button type="button" class="posgold-btn proof-btn" data-proof="${o.payment_proof_path}">📎 Ver comprobante</button>` : ""}
@@ -794,7 +794,13 @@
      se factura en PosGold con su contenido. Las líneas «(a elección)» que no son un producto concreto
      se avisan para agregarlas a mano. Si alguna otra línea no se reconoce, la caja sigue siendo manual. */
   const normName = s => String(s || "").replace(/\s+/g, " ").trim().toLowerCase();
-  function expandBox(it) {
+  // Cambios dentro de cajas guardados en la nota del pedido: «🔁 CAJA «Caja X»: «perfume agotado» → «perfume nuevo»»
+  function boxSubsMap(o) {
+    const m = new Map();
+    String((o && o.note) || "").split(/\r?\n/).forEach(l => { const r = l.match(/^🔁 CAJA «(.+?)»: «(.+?)» → «(.+?)»/); if (r) m.set(normName(r[1]) + "|" + normName(r[2]), r[3]); });
+    return m;
+  }
+  function expandBox(it, order) {
     const box = allProducts.find(pp => String(pp.id) === String(it.id)) || allProducts.find(pp => pp.name === it.name);
     const boxQty = Number(it.qty) || 0;
     const lines = [], manual = [];
@@ -807,7 +813,8 @@
       const n = Number(m[1]) || 0;
       const eleccion = /a\s+elecci[oó]n/i.test(m[2]);
       const name = m[2].replace(/\s*\((?:sabores?\s+)?a\s+elecci[oó]n\)\s*$/i, "");
-      const p = allProducts.find(pp => pp.category !== "Cajas / Combos" && normName(pp.name) === normName(name));
+      const swapTo = order ? boxSubsMap(order).get(normName(it.name) + "|" + normName(name)) : null;
+      const p = allProducts.find(pp => pp.category !== "Cajas / Combos" && normName(pp.name) === normName(swapTo || name));
       if (p) lines.push({ product: p, qty: n * boxQty });
       else if (eleccion) manual.push(`${n * boxQty} × ${name} (a elección) — de ${it.name}`);
       else unknown = true;
@@ -827,7 +834,7 @@
     // Cajas: se desglosan en sus perfumes cuando su contenido se reconoce; las demás quedan para agregar a mano
     const manualBoxes = [], manualLines = [], boxLines = [];
     boxes.forEach(b => {
-      const ex = expandBox(b);
+      const ex = expandBox(b, o);
       if (ex) { boxLines.push(...ex.lines); manualLines.push(...ex.manual); }
       else manualBoxes.push(b);
     });
@@ -930,16 +937,81 @@
   const unitPrice = p => Number(p.offer) > 0 ? Number(p.offer) : Number(p.mayor) || 0;
   const orderActive = o => o.status === "nuevo" || o.status === "tomado";
 
+
+  // Cajas por unidad con un perfume agotado dentro: aviso + cambio (queda en la nota del pedido y el Excel de PosGold lo usa)
+  function boxOutContents(o, it) {
+    const box = prodOfItem(it); if (!box || !box.note) return [];
+    const subs = boxSubsMap(o), out = [];
+    String(box.note).split(/\r?\n/).forEach(line => {
+      const m = line.match(/^\s*[•\-*]\s*(\d+)\s*[×xX]\s*(.+?)\s*$/); if (!m) return;
+      const name = m[2].replace(/\s*\((?:sabores?\s+)?a\s+elecci[oó]n\)\s*$/i, "");
+      const p = allProducts.find(pp => pp.category !== "Cajas / Combos" && normName(pp.name) === normName(name));
+      if (p && prodOut(p) && !subs.has(normName(it.name) + "|" + normName(p.name))) out.push({ p, qty: (Number(m[1]) || 0) * (Number(it.qty) || 0) });
+    });
+    return out;
+  }
+  const boxSwapUI = { ov: null, o: null, it: null, from: null, pick: null };
+  function boxSwapOpen(orderId, idx, fromId) {
+    const o = allOrders.find(x => String(x.id) === String(orderId)); if (!o) return;
+    const it = (o.items || [])[idx]; const from = allProducts.find(x => String(x.id) === String(fromId)); if (!it || !from) return;
+    Object.assign(boxSwapUI, { o, it, from, pick: null });
+    if (!boxSwapUI.ov) {
+      boxSwapUI.ov = document.createElement("div"); boxSwapUI.ov.className = "swap-ov"; boxSwapUI.ov.hidden = true;
+      boxSwapUI.ov.innerHTML = `<div class="swap-box"></div>`; document.body.appendChild(boxSwapUI.ov);
+      boxSwapUI.ov.addEventListener("click", boxSwapClick);
+      boxSwapUI.ov.addEventListener("input", e => { if (e.target.id === "bsSearch") boxSwapList(); });
+    }
+    boxSwapUI.ov.firstChild.innerHTML = `<h3>🔄 Cambiar un perfume dentro de la caja</h3>
+      <p><strong>${swapEsc(it.name)} × ${Number(it.qty)}</strong> — ${swapEsc(o.customer_name || "")}</p>
+      <p>Se agotó: <strong>${swapEsc(from.name)}</strong>. El precio de la caja no cambia; en el Excel de PosGold saldrá el perfume nuevo.</p>
+      <input type="search" id="bsSearch" placeholder="Buscar el perfume de reemplazo…" autocomplete="off">
+      <div class="swap-list" id="bsList"></div>
+      <div class="swap-sum" id="bsSum">Elige el perfume nuevo de la lista.</div>
+      <div class="swap-actions"><button type="button" data-bs-cancel>Cancelar</button><button type="button" class="go" id="bsGo" data-bs-go disabled>Confirmar cambio</button></div>`;
+    boxSwapUI.ov.hidden = false; boxSwapList();
+  }
+  function boxSwapList() {
+    const q = normName((document.getElementById("bsSearch") || {}).value || ""), f = boxSwapUI.from;
+    const inBox = new Set(); String((prodOfItem(boxSwapUI.it) || {}).note || "").split(/\r?\n/).forEach(l => { const m = l.match(/^\s*[•\-*]\s*\d+\s*[×xX]\s*(.+?)\s*$/); if (m) { const p = allProducts.find(pp => normName(pp.name) === normName(m[1])); if (p) inBox.add(p.id); } });
+    const list = allProducts.filter(p => p.category !== "Cajas / Combos" && p.avail && !prodOut(p) && !inBox.has(p.id) && (!q || normName(p.name).includes(q) || normName(p.ref).includes(q)))
+      .sort((a, b) => ((b.category === f.category) - (a.category === f.category)) || a.name.localeCompare(b.name, "es")).slice(0, 80);
+    document.getElementById("bsList").innerHTML = list.length ? list.map(p => `<button type="button" class="swap-opt${boxSwapUI.pick && boxSwapUI.pick.id === p.id ? " sel" : ""}" data-bs-pick="${p.id}"><span>${swapEsc(p.name)}</span><span>${money(unitPrice(p))}</span></button>`).join("") : `<p style="padding:10px">No hay perfumes disponibles con esa búsqueda.</p>`;
+  }
+  async function boxSwapConfirm() {
+    const { o, it, from, pick: np } = boxSwapUI; if (!np) return;
+    const line = `🔁 CAJA «${it.name}»: «${from.name}» → «${np.name}» (${Number(it.qty)} ${Number(it.qty) === 1 ? "caja" : "cajas"})`;
+    const go = document.getElementById("bsGo"); go.disabled = true; go.textContent = "Guardando…";
+    const note = (o.note ? o.note + "\n" : "") + line;
+    const { data, error } = await supabaseClient.from("orders").update({ note }).eq("id", o.id).select("*").single();
+    if (error) { go.disabled = false; go.textContent = "Confirmar cambio"; showToast("No se pudo guardar el cambio: " + error.message, true); return; }
+    Object.assign(o, data || { note });
+    boxSwapUI.ov.hidden = true; renderOrders();
+    showToast("Cambio guardado ✓ El Excel de PosGold ya sale con el perfume nuevo dentro de la caja");
+  }
+  function boxSwapClick(e) {
+    if (e.target === boxSwapUI.ov || e.target.closest("[data-bs-cancel]")) { boxSwapUI.ov.hidden = true; return; }
+    const pk = e.target.closest("[data-bs-pick]");
+    if (pk) { boxSwapUI.pick = allProducts.find(x => String(x.id) === pk.dataset.bsPick); boxSwapList(); document.getElementById("bsSum").innerHTML = `Cambiar <strong>${swapEsc(boxSwapUI.from.name)}</strong> por <strong>${swapEsc(boxSwapUI.pick.name)}</strong> en cada caja.`; document.getElementById("bsGo").disabled = false; return; }
+    if (e.target.closest("[data-bs-go]")) boxSwapConfirm();
+  }
+  el.ordersList.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-boxswap]"); if (!b) return;
+    const [oid, idx, pid] = b.dataset.boxswap.split("|"); boxSwapOpen(oid, parseInt(idx, 10), pid);
+  });
+
   function orderItemsHtml(o, items, itemsText) {
     if (!items.length) return `<p class="order-items">${swapEsc(itemsText)}</p>`;
     const canEdit = orderActive(o);
     return `<div class="order-items">${items.map((it, idx) => {
       const p = prodOfItem(it), out = prodOut(p) && !isBoxItem(it);
       return `<div class="oi-row${out ? " agot" : ""}"><span>${Number(it.qty) || 0}x ${swapEsc(it.name)}${out ? ` <b class="oi-tag">⚠ AGOTADO</b>` : ""}${it.replaced_from ? ` <em class="oi-sub">↔ sustituye a ${swapEsc(it.replaced_from)}</em>` : ""}</span>${canEdit && !isBoxItem(it) ? `<button type="button" class="oi-swap" data-swap="${o.id}|${idx}">🔄 Cambiar</button>` : ""}</div>`;
+    }).map((row, idx) => {
+      const it = items[idx], warns = isBoxItem(it) && canEdit ? boxOutContents(o, it) : [];
+      return row + warns.map(w => `<div class="oi-row agot"><span>⚠ La caja trae <b>${swapEsc(w.p.name)}</b> <b class="oi-tag">AGOTADO</b> (${w.qty} uds)</span><button type="button" class="oi-swap" data-boxswap="${o.id}|${idx}|${w.p.id}">🔄 Cambiar</button></div>`).join("");
     }).join("")}</div>`;
   }
   function orderSwapNoteHtml(o) {
-    const lines = String(o.note || "").split(/\r?\n/).filter(l => /^🔄/.test(l));
+    const lines = String(o.note || "").split(/\r?\n/).filter(l => /^(🔄|🔁)/u.test(l));
     return lines.length ? `<p class="order-swapnote">${lines.map(swapEsc).join("<br>")}</p>` : "";
   }
 
@@ -948,7 +1020,10 @@
     if (!box) { box = document.createElement("div"); el.ordersList.parentNode.insertBefore(box, el.ordersList); box.id = "soldoutPanel"; }
     const out = new Map(), low = new Map();
     allOrders.filter(orderActive).forEach(o => (Array.isArray(o.items) ? o.items : []).forEach(it => {
-      if (isBoxItem(it)) return;
+      if (isBoxItem(it)) {
+        boxOutContents(o, it).forEach(w => { const r = out.get(w.p.id) || { name: w.p.name + " (dentro de " + it.name + ")", orders: new Set(), units: 0, stock: null }; r.orders.add(o.id); r.units += w.qty; out.set(w.p.id, r); });
+        return;
+      }
       const p = prodOfItem(it); if (!p) return;
       const bucket = prodOut(p) ? out : (p.stock !== null && p.stock !== undefined && p.stock !== "" && Number(p.stock) > 0 && Number(p.stock) <= 5 ? low : null);
       if (!bucket) return;
