@@ -293,6 +293,139 @@
   el.cartOverlay.addEventListener("click", e => { if (e.target === el.cartOverlay) closeCart(); });
 
   /* ---------------------------------------------------------------
+     ARMA TU PROPIA CAJA: el cliente elige presupuesto y preferencia, y se le arma
+     con los perfumes DISPONIBLES. Entra al carrito como perfumes sueltos (uno por uno),
+     así el pedido y el Excel de PosGold los muestran todos con su código.
+     --------------------------------------------------------------- */
+  const BOX_BUDGETS = [
+    { id: "50", label: "$50 – $55", min: 50, max: 55, hint: "Caja básica de 12 perfumes" },
+    { id: "60", label: "$60 – $70", min: 60, max: 70, hint: "12 perfumes, con más variedad" },
+    { id: "100", label: "Más de $100", min: 100, max: 130, hint: "Caja grande, más de 12 perfumes" },
+  ];
+  const BOX_PREFS = [
+    { id: "hombre", label: "Más perfumes de hombre", w: { H: .65, M: .25, U: .10 } },
+    { id: "mujer", label: "Más perfumes de mujer", w: { H: .25, M: .65, U: .10 } },
+    { id: "unisex", label: "Unisex", w: { H: .20, M: .20, U: .60 } },
+    { id: "mixto", label: "Mixto (de todo un poco)", w: { H: .40, M: .40, U: .20 } },
+  ];
+  const BOX_KEY = "mpv_custombox_v1";
+  const boxPrice = p => Number(p.offer) > 0 ? Number(p.offer) : Number(p.mayor) || 0;
+  const boxGroup = p => p.category === "Perfumes Masculinos" ? "H" : p.category === "Perfumes Femeninos" ? "M" : p.category === "Unisex" ? "U" : null;
+  const round2 = n => Math.round(n * 100) / 100;
+
+  // Devuelve [{p, qty}] o null. `rnd` permite pruebas con semilla.
+  function buildCustomBox(pool, budget, pref, rnd) {
+    rnd = rnd || Math.random;
+    const items = pool.filter(p => boxGroup(p) && boxPrice(p) > 0 && isEffectivelyAvailable(p) && (p.min_qty || 12) > 1);
+    if (items.length < 12) return null;
+    const avg = items.reduce((s, p) => s + boxPrice(p), 0) / items.length;
+    const minP = Math.min(...items.map(boxPrice));
+    const mid = (budget.min + budget.max) / 2;
+    const cap = p => { const s = Number(p.stock); return p.stock === null || p.stock === undefined || p.stock === "" || isNaN(s) ? 99 : Math.max(0, Math.floor(s)); };
+    let best = null;
+    for (let attempt = 0; attempt < 700; attempt++) {
+      const N = Math.max(12, Math.round(mid / avg) + (attempt % 3 === 2 ? 1 : 0));
+      const used = new Map(); let total = 0, count = 0, ok = true;
+      const per = { H: 0, M: 0, U: 0 };
+      while (count < N) {
+        const left = N - count;
+        const target = (mid - total) / left;
+        // grupo con más "déficit" frente a la preferencia (con algo de azar)
+        const groups = ["H", "M", "U"].map(g => ({ g, s: pref.w[g] - per[g] / Math.max(1, count + 1) + rnd() * 0.15 })).sort((a, b) => b.s - a.s);
+        let pick = null;
+        for (const { g } of groups) {
+          const cands = items.filter(p => boxGroup(p) === g && (used.get(p.id) || 0) < Math.min(cap(p), (used.get(p.id) || 0) === 0 ? 1 : 2) && total + boxPrice(p) + (left - 1) * minP <= budget.max + 1e-9 && (used.get(p.id) || 0) === 0);
+          if (!cands.length) continue;
+          const w = cands.map(p => Math.exp(-Math.abs(boxPrice(p) - target) / 1.2) + 0.02);
+          let r = rnd() * w.reduce((a, b) => a + b, 0), k = 0;
+          while (k < w.length - 1 && (r -= w[k]) > 0) k++;
+          pick = cands[k]; break;
+        }
+        if (!pick) { ok = false; break; }
+        used.set(pick.id, 1); total += boxPrice(pick); count++; per[boxGroup(pick)]++;
+      }
+      if (!ok) continue;
+      total = round2(total);
+      if (total >= budget.min - 1e-9 && total <= budget.max + 1e-9 && count >= 12) {
+        const chosen = items.filter(p => used.has(p.id)).map(p => ({ p, qty: 1 }));
+        // preferencia: puntúa qué tan cerca quedó de los porcentajes pedidos
+        const sc = ["H", "M", "U"].reduce((s, g) => s + Math.abs(pref.w[g] - per[g] / count), 0);
+        if (!best || sc < best.sc) best = { sc, chosen, total };
+        if (sc < 0.25) break;
+      }
+    }
+    return best ? { lines: best.chosen, total: best.total } : null;
+  }
+
+  const boxUI = { step: 1, budget: null, pref: null, result: null };
+  const boxEl = { ov: document.getElementById("boxOverlay"), body: document.getElementById("boxBody"), steps: document.getElementById("boxSteps") };
+
+  function boxOpen() { boxUI.step = 1; boxUI.budget = boxUI.pref = boxUI.result = null; boxRender(); boxEl.ov.hidden = false; document.body.style.overflow = "hidden"; }
+  function boxClose() { boxEl.ov.hidden = true; document.body.style.overflow = ""; }
+
+  function boxRender() {
+    boxEl.steps.innerHTML = [1, 2, 3].map(n => `<i class="${n <= boxUI.step ? "on" : ""}"></i>`).join("");
+    if (boxUI.step === 1) {
+      boxEl.body.innerHTML = `<p class="box-q">1. ¿Cuál es tu presupuesto?</p><div class="box-opts">${BOX_BUDGETS.map(b => `<button type="button" class="box-opt" data-box-budget="${b.id}"><strong>${b.label}</strong><span>${b.hint}</span></button>`).join("")}</div>`;
+    } else if (boxUI.step === 2) {
+      boxEl.body.innerHTML = `<p class="box-q">2. ¿Qué tipo de perfumes prefieres?</p><div class="box-opts">${BOX_PREFS.map(b => `<button type="button" class="box-opt" data-box-pref="${b.id}"><strong>${b.label}</strong></button>`).join("")}</div><button type="button" class="box-back" data-box-back>← Cambiar presupuesto</button>`;
+    } else {
+      const r = boxUI.result;
+      if (!r) {
+        boxEl.body.innerHTML = `<p class="box-q">Por ahora no pudimos armar una caja con ese presupuesto y preferencia con lo que hay disponible.</p><p class="box-note">Prueba con otra preferencia (por ejemplo «Mixto») u otro presupuesto, o escríbenos por WhatsApp y una asesora te ayuda.</p><div class="box-actions"><button type="button" class="btn-primary" data-box-back>Probar otra opción</button></div>`;
+      } else {
+        const units = r.lines.reduce((s, l) => s + l.qty, 0);
+        boxEl.body.innerHTML = `
+          <div class="box-summary"><span>${units} perfumes · ${esc(boxUI.pref.label)}</span><b>${money(r.total)}</b></div>
+          <ul class="box-list">${r.lines.map(l => `<li><img src="${esc(l.p.image || "")}" alt="" loading="lazy"><span class="nm">${esc(l.p.name)}${l.qty > 1 ? ` × ${l.qty}` : ""}</span><span class="pr">${money(boxPrice(l.p) * l.qty)}</span></li>`).join("")}</ul>
+          <p class="box-note">Armada con lo disponible hoy, a precio al mayor. Se agregan al carrito como perfumes individuales; puedes quitar o cambiar los que quieras antes de pedir.</p>
+          <div class="box-actions">
+            <button type="button" class="btn-primary" data-box-add>Agregar esta caja al carrito</button>
+            <button type="button" class="btn-secondary" data-box-again>🔄 Armar otra distinta</button>
+          </div>
+          <button type="button" class="box-back" data-box-back>← Cambiar presupuesto o preferencia</button>`;
+      }
+    }
+  }
+
+  function boxGenerate() { boxUI.result = buildCustomBox(PRODUCTS, boxUI.budget, boxUI.pref); boxUI.step = 3; boxRender(); }
+
+  function boxAddToCart() {
+    const r = boxUI.result; if (!r) return;
+    r.lines.forEach(l => addToCart(l.p.id, l.qty));
+    try {
+      localStorage.setItem(BOX_KEY, JSON.stringify({ budget: boxUI.budget.label, pref: boxUI.pref.label, total: r.total, ids: r.lines.map(l => String(l.p.id)) }));
+    } catch (e) {}
+    boxClose();
+    openCart();
+  }
+
+  // Texto para la nota del pedido (lo ven las asesoras en el admin)
+  function boxOrderNote(cart) {
+    try {
+      const m = JSON.parse(localStorage.getItem(BOX_KEY) || "null");
+      if (!m || !Array.isArray(m.ids)) return "";
+      const inCart = m.ids.filter(id => cart[String(id)] > 0).length;
+      if (!inCart) return "";
+      return `🎁 CAJA PERSONALIZADA — presupuesto ${m.budget} · preferencia: ${m.pref} · ${inCart} de ${m.ids.length} perfumes de la caja siguen en el pedido (van desglosados uno por uno).`;
+    } catch (e) { return ""; }
+  }
+
+  document.getElementById("boxCtaBtn")?.addEventListener("click", boxOpen);
+  document.getElementById("boxClose")?.addEventListener("click", boxClose);
+  boxEl.ov.addEventListener("click", e => {
+    if (e.target === boxEl.ov) return boxClose();
+    const b = e.target.closest("[data-box-budget]"), pf = e.target.closest("[data-box-pref]");
+    if (b) { boxUI.budget = BOX_BUDGETS.find(x => x.id === b.dataset.boxBudget); boxUI.step = 2; boxRender(); }
+    else if (pf) { boxUI.pref = BOX_PREFS.find(x => x.id === pf.dataset.boxPref); boxGenerate(); }
+    else if (e.target.closest("[data-box-again]")) boxGenerate();
+    else if (e.target.closest("[data-box-add]")) boxAddToCart();
+    else if (e.target.closest("[data-box-back]")) { boxUI.step = boxUI.step === 3 ? 2 : 1; boxUI.result = null; boxRender(); }
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !boxEl.ov.hidden) boxClose(); });
+  window.__mpvBox = { buildCustomBox, BOX_BUDGETS, BOX_PREFS, setProducts: p => { PRODUCTS = p; } };
+
+  /* ---------------------------------------------------------------
      Favoritos (localStorage)
      --------------------------------------------------------------- */
   const FAV_KEY = "mpv_favorites_v1";
@@ -1130,6 +1263,7 @@
       assigned_by: advisorHow,
       advisor_phone: chosenAdvisor ? chosenAdvisor.phone : "",
     };
+    { const boxNote = boxOrderNote(cart); if (boxNote) order.note = boxNote; }
 
     try {
       await createOrder(order);

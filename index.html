@@ -105,6 +105,17 @@
     </div>
   </section>
 
+
+  <!-- ============ ARMA TU PROPIA CAJA ============ -->
+  <section class="box-cta" id="boxCta" aria-label="Arma tu propia caja">
+    <div class="box-cta-text">
+      <span class="box-cta-kicker">NUEVO</span>
+      <h2>Arma tu propia caja con nosotros</h2>
+      <p>Dinos tu presupuesto y qué prefieres (hombre, mujer, unisex o mixto) y te armamos una caja de mínimo 12 perfumes con lo que hay disponible hoy.</p>
+    </div>
+    <button type="button" class="btn-primary" id="boxCtaBtn">🎁 Armar mi caja</button>
+  </section>
+
   <!-- Espacio de categorías (se ve mientras no haya banners cargados en el admin) -->
   <section class="category-tiles" id="categoryTiles" hidden></section>
 
@@ -356,6 +367,17 @@
       <p class="success-schedule" id="successSchedule" hidden></p>
       <button class="btn-primary" id="closeSuccessBtn">Cerrar</button>
     </div>
+  </div>
+</div>
+
+
+<!-- ============ ARMADOR DE CAJA PERSONALIZADA ============ -->
+<div class="cart-overlay box-overlay" id="boxOverlay" hidden>
+  <div class="box-modal" role="dialog" aria-modal="true" aria-labelledby="boxTitle">
+    <button type="button" class="box-close" id="boxClose" aria-label="Cerrar">×</button>
+    <h3 id="boxTitle">🎁 Arma tu propia caja</h3>
+    <div class="box-steps" id="boxSteps"></div>
+    <div id="boxBody"></div>
   </div>
 </div>
 
