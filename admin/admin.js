@@ -596,7 +596,7 @@
   /* ---------- Descargar pedidos en Excel (un mes, o todo el historial) ---------- */
   const ESTADO_TXT = { nuevo: "Nuevo", tomado: "Tomado", entregado: "Entregado", cancelado: "Cancelado" };
   const PAGO_TXT = { pendiente: "Pago pendiente", por_verificar: "Pago por verificar", pagado: "Pagado" };
-  const ASIGNA_TXT = { link: "Link personal", recordada: "Recordada y confirmada", elegida: "Elegida por el cliente", turno: "Por turno" };
+  const ASIGNA_TXT = { link: "Link personal", recordada: "Recordada y confirmada", elegida: "Elegida por el cliente", turno: "Por turno", admin: "Reasignada por la administradora" };
   function resumenDe(pedidos) {
     const vigentes = pedidos.filter(o => o.status !== "cancelado");
     return { pedidos: vigentes.length, total: vigentes.reduce((s, o) => s + (Number(o.total) || 0), 0), vendido: pedidos.filter(o => o.status === "tomado" || o.status === "entregado").reduce((s, o) => s + (Number(o.total) || 0), 0), cancelados: pedidos.length - vigentes.length };
@@ -767,7 +767,7 @@
           </div>
           <p class="order-advisor">
             ${o.advisor_name
-              ? `Asesora: <strong>${o.advisor_name}</strong>${({ link: " · por su link personal", recordada: " · la recordó la tienda y el cliente la confirmó", elegida: " · la eligió el cliente", turno: " · asignada por turno" })[o.assigned_by] || ""}`
+              ? `Asesora: <strong>${o.advisor_name}</strong>${({ link: " · por su link personal", recordada: " · la recordó la tienda y el cliente la confirmó", elegida: " · la eligió el cliente", turno: " · asignada por turno", admin: " · reasignada por la administradora" })[o.assigned_by] || ""}`
               : `<em style="color:var(--text-soft)">Sin asesora</em>`}
             ${currentRole === "admin" ? `<button type="button" class="change-advisor-btn" data-change-advisor="${o.id}" title="Cambiar asesora">✏️</button>` : ""}
           </p>
@@ -1186,14 +1186,10 @@
       const sel = document.getElementById("advisorPickSelect");
       const newAdvisorId = sel.value ? parseInt(sel.value, 10) : null;
       const newAdvisor = advisorsList.find(a => a.id === newAdvisorId) || null;
-      const patch = {
-        advisor_name: newAdvisor ? newAdvisor.name : null,
-        assigned_by: "admin"
-      };
+      const patch = { advisor_name: newAdvisor ? newAdvisor.name : null, assigned_by: "admin" };
       const { error } = await supabaseClient.from("orders").update(patch).eq("id", orderId);
       if (error) { showToast("No se pudo cambiar la asesora: " + error.message, true); return; }
-      // Actualizar en memoria
-      Object.assign(order, patch);
+      order.advisor_name = patch.advisor_name; order.assigned_by = "admin";
       overlay.remove();
       renderOrders();
       showToast(newAdvisor ? `Asesora cambiada a ${newAdvisor.name}` : "Asesora quitada del pedido");
