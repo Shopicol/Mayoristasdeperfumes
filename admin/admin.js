@@ -1170,7 +1170,7 @@
       <p style="margin:0 0 16px;font-size:13px;color:#666;">Pedido #${orderId} · ${order.customer_name || "—"}</p>
       <select id="advisorPickSelect" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:16px;">
         <option value="">— Sin asesora —</option>
-        ${advisorsList.map(a => `<option value="${a.id}" ${String(order.advisor_id) === String(a.id) ? "selected" : ""}>${a.name}${a.is_hidden ? " 🔒 VIP" : ""}</option>`).join("")}
+        ${advisorsList.map(a => `<option value="${a.id}" ${order.advisor_name === a.name ? "selected" : ""}>${a.name}${a.is_hidden ? " 🔒 VIP" : ""}</option>`).join("")}
       </select>
       <div style="display:flex;gap:10px;justify-content:flex-end;">
         <button id="advisorPickCancel" style="padding:9px 18px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;">Cancelar</button>
