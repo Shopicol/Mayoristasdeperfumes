@@ -765,7 +765,12 @@
               ${Object.entries(PAY_LABELS).map(([val, label]) => `<option value="${val}" ${(o.payment_status || "pendiente") === val ? "selected" : ""}>${label}</option>`).join("")}
             </select>
           </div>
-          ${o.advisor_name ? `<p class="order-advisor">Asesora: ${o.advisor_name}${({ link: " · por su link personal", recordada: " · la recordó la tienda y el cliente la confirmó", elegida: " · la eligió el cliente", turno: " · asignada por turno" })[o.assigned_by] || ""}</p>` : ""}
+          <p class="order-advisor">
+            ${o.advisor_name
+              ? `Asesora: <strong>${o.advisor_name}</strong>${({ link: " · por su link personal", recordada: " · la recordó la tienda y el cliente la confirmó", elegida: " · la eligió el cliente", turno: " · asignada por turno" })[o.assigned_by] || ""}`
+              : `<em style="color:var(--text-soft)">Sin asesora</em>`}
+            ${currentRole === "admin" ? `<button type="button" class="change-advisor-btn" data-change-advisor="${o.id}" title="Cambiar asesora">✏️</button>` : ""}
+          </p>
           ${/CAJA PERSONALIZADA/.test(o.note || "") ? `<p class="order-boxes">🎁 <strong>Caja personalizada del cliente:</strong> ${String(o.note).split(/\r?\n/).filter(l => /CAJA PERSONALIZADA/.test(l)).join(" ").replace(/^.*?CAJA PERSONALIZADA\s*—\s*/, "").replace(/</g, "&lt;")}<br>✅ Todos sus perfumes salen uno por uno en el Excel de PosGold.</p>` : ""}
           <p class="order-meta">${o.payment_method || ""} · ${o.delivery_method || ""} · ${o.city || ""}${o.address ? " — " + o.address : ""}</p>
           ${(() => { const bx = (Array.isArray(o.items) ? o.items : []).filter(isBoxItem); if (!bx.length) return ""; const auto = bx.filter(it => expandBox(it, o)), man = bx.filter(it => !expandBox(it, o)); const extra = auto.flatMap(it => expandBox(it, o).manual); return (auto.length ? `<p class="order-boxes">📦 <strong>Cajas desglosadas en el Excel de PosGold:</strong> ${auto.map(it => `${it.name} × ${Number(it.qty) || 0}`).join(" · ")}${extra.length ? ` <br>✋ <strong>A mano:</strong> ${extra.join(" · ")}` : ""}</p>` : "") + (man.length ? `<p class="order-boxes">📦 <strong>Cajas para agregar a mano en PosGold:</strong> ${man.map(it => `${it.name} × ${Number(it.qty) || 0}`).join(" · ")}</p>` : ""); })()}
@@ -1137,6 +1142,59 @@
     const { data, error } = await supabaseClient.storage.from("payment-proofs").createSignedUrl(btn.dataset.proof, 600);
     if (error || !data) { if (tab) tab.close(); showToast("No se pudo abrir el comprobante: " + ((error && error.message) || "sin permiso"), true); return; }
     if (tab) tab.location.href = data.signedUrl; else window.location.href = data.signedUrl;
+  });
+
+  // Reasignar asesora: botón ✏️ en cada pedido (solo admin)
+  el.ordersList.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-change-advisor]");
+    if (!btn) return;
+    const orderId = btn.dataset.changeAdvisor;
+    const order = allOrders.find(x => String(x.id) === String(orderId));
+    if (!order) return;
+
+    // Cargar lista de asesoras activas (incluyendo VIP/ocultas) desde la memoria
+    const advisorsList = allAdvisors || [];
+    if (!advisorsList.length) { showToast("No hay asesoras cargadas", true); return; }
+
+    // Construir modal de selección
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:center;justify-content:center;";
+    const box = document.createElement("div");
+    box.style.cssText = "background:#fff;border-radius:12px;padding:28px 24px;width:min(360px,90vw);box-shadow:0 20px 60px rgba(0,0,0,.3);";
+    box.innerHTML = `
+      <h3 style="margin:0 0 6px;font-size:16px;">Cambiar asesora</h3>
+      <p style="margin:0 0 16px;font-size:13px;color:#666;">Pedido #${orderId} · ${order.customer_name || "—"}</p>
+      <select id="advisorPickSelect" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:16px;">
+        <option value="">— Sin asesora —</option>
+        ${advisorsList.map(a => `<option value="${a.id}" ${String(order.advisor_id) === String(a.id) ? "selected" : ""}>${a.name}${a.is_hidden ? " 🔒 VIP" : ""}</option>`).join("")}
+      </select>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button id="advisorPickCancel" style="padding:9px 18px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;">Cancelar</button>
+        <button id="advisorPickSave" style="padding:9px 18px;border:none;border-radius:8px;background:var(--gold,#B8912A);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
+      </div>
+    `;
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener("click", (ev) => { if (ev.target === overlay) overlay.remove(); });
+    document.getElementById("advisorPickCancel").addEventListener("click", () => overlay.remove());
+    document.getElementById("advisorPickSave").addEventListener("click", async () => {
+      const sel = document.getElementById("advisorPickSelect");
+      const newAdvisorId = sel.value ? parseInt(sel.value, 10) : null;
+      const newAdvisor = advisorsList.find(a => a.id === newAdvisorId) || null;
+      const patch = {
+        advisor_id: newAdvisorId,
+        advisor_name: newAdvisor ? newAdvisor.name : null,
+        assigned_by: "admin"
+      };
+      const { error } = await supabaseClient.from("orders").update(patch).eq("id", orderId);
+      if (error) { showToast("No se pudo cambiar la asesora: " + error.message, true); return; }
+      // Actualizar en memoria
+      Object.assign(order, patch);
+      overlay.remove();
+      renderOrders();
+      showToast(newAdvisor ? `Asesora cambiada a ${newAdvisor.name}` : "Asesora quitada del pedido");
+    });
   });
 
   el.ordersList.addEventListener("change", async (e) => {
