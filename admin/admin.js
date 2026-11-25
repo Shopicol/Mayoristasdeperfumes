@@ -932,6 +932,9 @@
     .swap-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:10px; }
     .swap-actions button{ padding:9px 16px; border-radius:8px; border:1px solid #d6d3c8; background:#fff; font:inherit; cursor:pointer; }
     .swap-actions .go{ background:#111; color:#fff; border-color:#111; } .swap-actions .go:disabled{ opacity:.45; cursor:not-allowed; }
+    .order-advisor{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .change-advisor-btn{ background:none; border:none; cursor:pointer; font-size:13px; padding:0 2px; line-height:1; opacity:.55; transition:opacity .15s; }
+    .change-advisor-btn:hover{ opacity:1; }
     `;
     document.head.appendChild(st);
   })();
@@ -1152,9 +1155,10 @@
     const order = allOrders.find(x => String(x.id) === String(orderId));
     if (!order) return;
 
-    // Cargar lista de asesoras activas (incluyendo VIP/ocultas) desde la memoria
+    // Si las asesoras aún no cargaron, las cargamos ahora
+    if (!allAdvisors.length) await loadAdvisors();
     const advisorsList = allAdvisors || [];
-    if (!advisorsList.length) { showToast("No hay asesoras cargadas", true); return; }
+    if (!advisorsList.length) { showToast("No hay asesoras registradas", true); return; }
 
     // Construir modal de selección
     const overlay = document.createElement("div");
@@ -1183,7 +1187,6 @@
       const newAdvisorId = sel.value ? parseInt(sel.value, 10) : null;
       const newAdvisor = advisorsList.find(a => a.id === newAdvisorId) || null;
       const patch = {
-        advisor_id: newAdvisorId,
         advisor_name: newAdvisor ? newAdvisor.name : null,
         assigned_by: "admin"
       };
