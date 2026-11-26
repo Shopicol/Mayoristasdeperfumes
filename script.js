@@ -10,7 +10,8 @@
   let currentModalProduct = null;
   let modalQtyValue = 1;
   let modalMinQty = 1;
-  const WHOLESALE_MIN_TOTAL = 12; // mínimo total de unidades (puede ser surtido, mezclando perfumes)
+  const WHOLESALE_MIN_BASE = 12;                       // mínimo normal de perfumes sueltos
+  let WHOLESALE_MIN_TOTAL = WHOLESALE_MIN_BASE;       // mínimo vigente (baja en la promo de Black Friday, desde Ajustes)
 
   const state = {
     query: "",
@@ -1004,7 +1005,7 @@
     el.modalPriceOld.textContent = showOld ? money(p.mayor) : "";
     el.modalQty.textContent = modalQtyValue;
     el.modalMinQtyNote.hidden = modalMinQty <= 1;
-    el.modalMinQtyNote.textContent = modalMinQty > 1 ? "Perfumes sueltos: mínimo 12 en total — puedes combinar cualquier referencia" : "";
+    el.modalMinQtyNote.textContent = modalMinQty > 1 ? `Perfumes sueltos: mínimo ${WHOLESALE_MIN_TOTAL} en total — puedes combinar cualquier referencia` : "";
     const detail = (p.note || "").trim();
     el.modalDescription.hidden = !detail;
     el.modalDescriptionText.textContent = detail;
@@ -1463,8 +1464,26 @@
     });
   }
 
+  /* Black Friday: mínimo reducido entre dos fechas (hora de Venezuela). Se activa desde Ajustes del admin. */
+  function bfInfo(s) {
+    s = s || {};
+    const n = parseInt(s.bf_min_qty, 10);
+    if (s.bf_enabled !== true || !(n >= 1)) return null;
+    const hoy = new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" });   // AAAA-MM-DD
+    if (s.bf_from && hoy < String(s.bf_from).slice(0, 10)) return null;
+    if (s.bf_until && hoy > String(s.bf_until).slice(0, 10)) return null;
+    return { min: Math.min(n, WHOLESALE_MIN_BASE), until: s.bf_until ? String(s.bf_until).slice(0, 10) : "" };
+  }
+
   function applySettings(settings) {
-    if (settings.eyebrow_text) el.eyebrowText.textContent = settings.eyebrow_text;
+    const bf = bfInfo(settings);
+    WHOLESALE_MIN_TOTAL = bf ? bf.min : WHOLESALE_MIN_BASE;
+    if (bf) {
+      const hasta = bf.until ? bf.until.split("-").reverse().slice(0, 2).join("/") : "";
+      el.eyebrowText.textContent = `🖤 BLACK FRIDAY — compra al mayor desde ${bf.min} perfumes${hasta ? " (hasta el " + hasta + ")" : ""}`;
+    }
+    try { renderCartPanel(); } catch (e) {}
+    if (!bf && settings.eyebrow_text) el.eyebrowText.textContent = settings.eyebrow_text;
     if (settings.hero_title) el.heroTitle.innerHTML = settings.hero_title;
     if (settings.hero_subtitle) el.heroSubtitle.textContent = settings.hero_subtitle;
   }
@@ -1824,6 +1843,7 @@
     el.trustPay.textContent = pagos.length > 1 ? pagos.slice(0, -1).join(", ") + " o " + pagos[pagos.length - 1] : pagos[0];
     const cajas = PRODUCTS.filter(p => (p.min_qty || WHOLESALE_MIN_TOTAL) <= 1 && isEffectivelyAvailable(p)).map(p => Number(p.offer) > 0 ? Number(p.offer) : Number(p.mayor)).filter(x => x > 0);
     const desde = cajas.length ? Math.min(...cajas) : 0;
+    const tsg = el.trustMin.parentElement && el.trustMin.parentElement.querySelector("strong"); if (tsg) tsg.textContent = `Desde ${WHOLESALE_MIN_TOTAL} perfumes`;
     el.trustMin.textContent = desde ? `Surtido a tu gusto · cajas desde $${Number.isInteger(desde) ? desde : desde.toFixed(2)}` : "Surtido a tu gusto, de cualquier referencia";
     paintTrustChat();
   }
