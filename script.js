@@ -1465,24 +1465,83 @@
   }
 
   /* Black Friday: mínimo reducido entre dos fechas (hora de Venezuela). Se activa desde Ajustes del admin. */
-  function bfInfo(s) {
+  function bfPhase(s) {
     s = s || {};
     const n = parseInt(s.bf_min_qty, 10);
     if (s.bf_enabled !== true || !(n >= 1)) return null;
-    const hoy = new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" });   // AAAA-MM-DD
-    if (s.bf_from && hoy < String(s.bf_from).slice(0, 10)) return null;
-    if (s.bf_until && hoy > String(s.bf_until).slice(0, 10)) return null;
-    return { min: Math.min(n, WHOLESALE_MIN_BASE), until: s.bf_until ? String(s.bf_until).slice(0, 10) : "" };
+    const min = Math.min(n, WHOLESALE_MIN_BASE);
+    const from = s.bf_from ? String(s.bf_from).slice(0, 10) : "", until = s.bf_until ? String(s.bf_until).slice(0, 10) : "";
+    const start = from ? Date.parse(from + "T00:00:00-04:00") : 0;                       // 12:00 a. m. hora de Venezuela
+    const end = until ? Date.parse(until + "T23:59:59.999-04:00") : Infinity;           // fin del último día
+    const now = Date.now();
+    if (now > end) return null;
+    return { phase: now < start ? "upcoming" : "active", min, start, until };
+  }
+  function bfInfo(s) { const f = bfPhase(s); return f && f.phase === "active" ? f : null; }   // solo cuando ya está activa
+
+  (function bfStyles() {
+    const st = document.createElement("style");
+    st.textContent = `
+    .bf-banner{ background:linear-gradient(90deg,#0B0B0B,#2A2110 55%,#0B0B0B); color:#fff; text-align:center; padding:11px 14px; font-size:14px; line-height:1.4; letter-spacing:.01em; border-bottom:2px solid #D4A833; }
+    .bf-banner strong{ font-weight:800; letter-spacing:.05em; color:#F2CF6B; }
+    .bf-banner.on strong:first-of-type{ color:#fff; background:#D4A833; color:#111; padding:2px 8px; border-radius:6px; }
+    .bf-pill{ display:inline-block; margin-left:10px; background:rgba(212,168,51,.18); border:1px solid #D4A833; border-radius:999px; padding:2px 12px; font-weight:800; letter-spacing:.03em; white-space:nowrap; color:#F2CF6B; font-variant-numeric:tabular-nums; }
+    @media (max-width:600px){ .bf-banner{ font-size:12.5px; padding:9px 10px; } .bf-pill{ margin:5px 0 0; font-size:12px; } }
+    `;
+    document.head.appendChild(st);
+  })();
+
+  function bfCountdownText(ms) {                               // "6 h 12 min 05 s" · "1 día 5 h 20 min"
+    let s = Math.max(0, Math.floor(ms / 1000));
+    const d = Math.floor(s / 86400); s -= d * 86400;
+    const h = Math.floor(s / 3600); s -= h * 3600;
+    const mi = Math.floor(s / 60), se = s - mi * 60, p = n => String(n).padStart(2, "0");
+    if (d > 0) return `${d} ${d === 1 ? "día" : "días"} ${h} h ${p(mi)} min`;
+    if (h > 0) return `${h} h ${p(mi)} min ${p(se)} s`;
+    return `${mi} min ${p(se)} s`;
+  }
+  function bfDiaFin(until) {                                   // "2026-11-28" -> "sábado"
+    if (!until) return "";
+    try { return new Date(until + "T12:00:00-04:00").toLocaleDateString("es-VE", { weekday: "long", timeZone: "America/Caracas" }); } catch (e) { return ""; }
+  }
+
+  let bfTimer = null, bfShownPhase = null;
+  function bfApplyMin() {                                      // mínimo vigente + carrito al día
+    const f = bfInfo(siteSettings);
+    WHOLESALE_MIN_TOTAL = f ? f.min : WHOLESALE_MIN_BASE;
+    try { renderCartPanel(); } catch (e) {}
+  }
+  function paintBfBanner() {
+    let b = document.getElementById("bfBanner");
+    const f = bfPhase(siteSettings);
+    if (!f) { if (b) b.remove(); return; }
+    if (!b) {
+      b = document.createElement("div"); b.id = "bfBanner";
+      const h = document.querySelector("header.site-header");
+      if (h && h.parentNode) h.parentNode.insertBefore(b, h.nextSibling); else document.body.insertBefore(b, document.body.firstChild);
+    }
+    if (f.phase === "upcoming") {
+      b.className = "bf-banner soon";
+      b.innerHTML = `🖤 <strong>BLACK FRIDAY</strong> empieza en <span class="bf-pill">⏳ <span id="bfCount">${bfCountdownText(f.start - Date.now())}</span></span> · compra mínima desde <strong>${f.min} pzas</strong>`;
+    } else {
+      b.className = "bf-banner on";
+      const dia = bfDiaFin(f.until);
+      b.innerHTML = `<strong>BLACK FRIDAY ON</strong> 🖤 compra mínima desde <strong>${f.min} pzas</strong>${dia ? ` <span class="bf-pill">⏰ Solo hasta el ${dia}</span>` : ""}`;
+    }
+  }
+  function bfTick() {
+    const f = bfPhase(siteSettings), ph = f ? f.phase : null;
+    if (ph !== bfShownPhase) { bfShownPhase = ph; bfApplyMin(); paintBfBanner(); return; }   // cambió de etapa: empezó o terminó
+    if (ph === "upcoming") { const c = document.getElementById("bfCount"); if (c) c.textContent = bfCountdownText(f.start - Date.now()); }
   }
 
   function applySettings(settings) {
     const bf = bfInfo(settings);
-    WHOLESALE_MIN_TOTAL = bf ? bf.min : WHOLESALE_MIN_BASE;
-    if (bf) {
-      const hasta = bf.until ? bf.until.split("-").reverse().slice(0, 2).join("/") : "";
-      el.eyebrowText.textContent = `🖤 BLACK FRIDAY — compra al mayor desde ${bf.min} perfumes${hasta ? " (hasta el " + hasta + ")" : ""}`;
-    }
-    try { renderCartPanel(); } catch (e) {}
+    const ph0 = bfPhase(settings);
+    bfShownPhase = ph0 ? ph0.phase : null;
+    bfApplyMin();
+    paintBfBanner();
+    if (!bfTimer) bfTimer = setInterval(bfTick, 1000);
     if (!bf && settings.eyebrow_text) el.eyebrowText.textContent = settings.eyebrow_text;
     if (settings.hero_title) el.heroTitle.innerHTML = settings.hero_title;
     if (settings.hero_subtitle) el.heroSubtitle.textContent = settings.hero_subtitle;
