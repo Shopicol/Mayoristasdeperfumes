@@ -1570,6 +1570,10 @@
     renderHoursRows(settings.business_hours && typeof settings.business_hours === "object" ? settings.business_hours : HORARIO_INICIAL);
     el.settingsZelleEmail.value = settings.zelle_email || "";
     el.settingsZelleHolder.value = settings.zelle_holder_name || "";
+    document.getElementById("settingsBfEnabled").checked = settings.bf_enabled === true;
+    document.getElementById("settingsBfMin").value = settings.bf_min_qty || 6;
+    document.getElementById("settingsBfFrom").value = settings.bf_from || "";
+    document.getElementById("settingsBfUntil").value = settings.bf_until || "";
   }
 
   /* ---------- Horario de atención ---------- */
@@ -1613,6 +1617,12 @@
     e.preventDefault();
     el.settingsMessage.hidden = true;
     const horario = leerHorario(); if (!horario) return;
+    const bfOn = document.getElementById("settingsBfEnabled").checked;
+    const bfMin = parseInt(document.getElementById("settingsBfMin").value, 10) || 6;
+    const bfFrom = document.getElementById("settingsBfFrom").value || null;
+    const bfUntil = document.getElementById("settingsBfUntil").value || null;
+    if (bfMin < 1 || bfMin > 12) { showMessage(el.settingsMessage, "El mínimo de Black Friday debe estar entre 1 y 12 perfumes.", false); return; }
+    if (bfFrom && bfUntil && bfFrom > bfUntil) { showMessage(el.settingsMessage, "En Black Friday, la fecha «Desde» no puede ser después de «Hasta».", false); return; }
     el.saveSettingsBtn.disabled = true;
     el.saveSettingsBtn.textContent = "Guardando…";
     const payload = {
@@ -1633,6 +1643,10 @@
       business_hours: horario,
       zelle_email: el.settingsZelleEmail.value.trim(),
       zelle_holder_name: el.settingsZelleHolder.value.trim(),
+      bf_enabled: bfOn,
+      bf_min_qty: bfMin,
+      bf_from: bfFrom,
+      bf_until: bfUntil,
     };
     const { error } = await supabaseClient.from("site_settings").upsert(payload);
     el.saveSettingsBtn.disabled = false;

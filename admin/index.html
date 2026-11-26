@@ -287,6 +287,18 @@
             </select>
           </label>
         </div>
+        <div class="hours-box" id="bfBox">
+          <h3 class="hours-title">🖤 Black Friday — mínimo reducido</h3>
+          <label class="check-row"><input type="checkbox" id="settingsBfEnabled"> <span><b>Activar promoción:</b> los clientes pueden comprar al mayor desde menos perfumes</span></label>
+          <div class="form-row two">
+            <label><span>Mínimo de perfumes durante la promo</span><input type="number" id="settingsBfMin" min="1" max="12" step="1" value="6"></label>
+            <label><span>Desde el día</span><input type="date" id="settingsBfFrom"></label>
+          </div>
+          <div class="form-row two">
+            <label><span>Hasta el día (incluido)</span><input type="date" id="settingsBfUntil"></label>
+          </div>
+          <small class="field-hint">Hora de Venezuela. Con el interruptor encendido y dentro de esas fechas, el mínimo baja solo (en la tienda y al guardar el pedido), y al terminar el último día vuelve a 12 sin que hagas nada. Para apagarla antes, quita la casilla y guarda.</small>
+        </div>
         <div class="hours-box">
           <h3 class="hours-title">Horario de atención</h3>
           <label class="check-row"><input type="checkbox" id="settingsHoursEnabled"> <span>Avisar al cliente, al terminar su pedido, si estamos dentro o fuera de horario</span></label>
