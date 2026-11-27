@@ -198,6 +198,89 @@
     }, 0);
   }
 
+  /* ---------------------------------------------------------------
+     CÓDIGOS DE DESCUENTO (con vencimiento). La base de datos los vuelve a revisar al guardar el pedido.
+     --------------------------------------------------------------- */
+  let appliedCoupon = null;                     // { code, type: "percent"|"fixed", value }
+  function couponDiscount(subtotal) {
+    if (!appliedCoupon) return 0;
+    const raw = appliedCoupon.type === "percent" ? subtotal * Math.min(appliedCoupon.value, 100) / 100 : appliedCoupon.value;
+    return Math.round(Math.min(raw, subtotal) * 100) / 100;
+  }
+  function cartFinalTotal() { const s = cartTotal(); return Math.max(0, Math.round((s - couponDiscount(s)) * 100) / 100); }
+  const COUPON_MSGS = {
+    no_existe: "Ese código no existe. Revisa que esté bien escrito.",
+    inactivo: "Ese código ya no está activo.",
+    aun_no: "Ese código todavía no está vigente.",
+    vencido: "Este código venció.",
+    black_friday: "Los códigos no se pueden usar durante el Black Friday (ya tienes el mínimo reducido).",
+    usado: "Ya usaste este código con esta cédula. Es de un solo uso por cliente.",
+    sin_cedula: "Escribe primero tu cédula para usar el código."
+  };
+  let couponUI = null;
+  function couponEnsureUI() {
+    if (couponUI) return couponUI;
+    const st = document.createElement("style");
+    st.textContent = `
+      .coupon-box{ border:1.5px dashed #C9A54A; background:#FFFBEF; border-radius:12px; padding:12px 14px; margin:6px 0 14px; }
+      .coupon-box .coupon-label{ display:block; font-size:13px; font-weight:700; margin-bottom:8px; color:#3B3123; }
+      .coupon-row{ display:flex; gap:8px; }
+      .coupon-row input{ flex:1; min-width:0; text-transform:uppercase; letter-spacing:.04em; }
+      .coupon-row button{ border:0; border-radius:10px; padding:0 16px; font-weight:800; cursor:pointer; background:#141008; color:#F2CF6B; white-space:nowrap; }
+      .coupon-row button.quitar{ background:#fff; color:#7A1F1F; border:1.5px solid #E5B7B7; }
+      .coupon-msg{ margin:8px 0 0; font-size:13px; line-height:1.4; }
+      .coupon-msg.ok{ color:#1D6B3A; font-weight:700; } .coupon-msg.err{ color:#9B1C1C; }
+    `;
+    document.head.appendChild(st);
+    const box = document.createElement("div");
+    box.className = "coupon-box"; box.id = "couponBox";
+    box.innerHTML = `<span class="coupon-label">🏷 ¿Tienes un código de descuento?</span>
+      <div class="coupon-row"><input type="text" id="couponInput" placeholder="Ej: CYBER10" autocomplete="off" maxlength="30"><button type="button" id="couponApply">Aplicar</button></div>
+      <p class="coupon-msg" id="couponMsg" hidden></p>`;
+    const anchor = el.custCedulaNum.closest("label");
+    anchor.parentNode.insertBefore(box, anchor.nextSibling);
+    couponUI = { box, input: box.querySelector("#couponInput"), btn: box.querySelector("#couponApply"), msg: box.querySelector("#couponMsg") };
+    couponUI.btn.addEventListener("click", () => { if (appliedCoupon) couponClear(); else couponApply(); });
+    couponUI.input.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); if (!appliedCoupon) couponApply(); } });
+    el.custCedulaNum.addEventListener("input", () => { if (appliedCoupon) { couponClear(); couponShow("La cédula cambió: vuelve a aplicar el código.", false); } });
+    return couponUI;
+  }
+  function couponShow(text, ok) { const u = couponEnsureUI(); u.msg.textContent = text; u.msg.className = "coupon-msg " + (ok ? "ok" : "err"); u.msg.hidden = !text; }
+  function couponPaint() {
+    const u = couponEnsureUI();
+    u.input.disabled = !!appliedCoupon;
+    u.btn.textContent = appliedCoupon ? "Quitar" : "Aplicar";
+    u.btn.classList.toggle("quitar", !!appliedCoupon);
+    if (appliedCoupon) {
+      const s = cartTotal(), d = couponDiscount(s);
+      couponShow(`✓ Código ${appliedCoupon.code} aplicado${appliedCoupon.type === "percent" ? ` (${appliedCoupon.value}%)` : ""}: −${money(d)} · Total: ${money(Math.max(0, s - d))}`, true);
+    }
+    try { updatePaymentDetailsBox(); } catch (e) {}
+  }
+  function couponClear() { appliedCoupon = null; const u = couponEnsureUI(); u.msg.hidden = true; couponPaint(); }
+  function couponReset() {
+    const u = couponEnsureUI();
+    appliedCoupon = null; u.input.value = ""; u.msg.hidden = true;
+    u.box.hidden = typeof bfInfo === "function" && !!bfInfo(siteSettings);      // en Black Friday no se ofrecen códigos
+    couponPaint();
+  }
+  async function couponApply() {
+    const u = couponEnsureUI();
+    const code = u.input.value.trim().toUpperCase();
+    if (!code) { couponShow("Escribe el código.", false); return; }
+    const ced = soloNumeros(el.custCedulaNum.value);
+    if (!validarCedula(el.custCedulaNum.value).ok) { couponShow(COUPON_MSGS.sin_cedula, false); el.custCedulaNum.focus(); return; }
+    if (!SUPABASE_READY) { couponShow("Los códigos no están disponibles en este momento.", false); return; }
+    u.btn.disabled = true; u.btn.textContent = "…";
+    try {
+      const { data, error } = await supabaseClient.rpc("coupon_check", { p_code: code, p_cedula: ced });
+      const r = Array.isArray(data) ? data[0] : data;
+      if (error || !r) { couponShow("No se pudo revisar el código. Intenta de nuevo.", false); return; }
+      if (!r.ok) { appliedCoupon = null; couponShow(COUPON_MSGS[r.reason] || COUPON_MSGS.no_existe, false); return; }
+      appliedCoupon = { code: r.code, type: r.discount_type, value: Number(r.discount_value) || 0 };
+    } finally { u.btn.disabled = false; couponPaint(); }
+  }
+
   function pooledQty() {
     const cart = loadCart();
     return Object.entries(cart).reduce((sum, [key, qty]) => {
@@ -1090,7 +1173,7 @@
       el.payLaterNote.hidden = !(val === "Pagar después" || val === "Efectivo");
       return;
     }
-    const totalUsd = cartTotal();
+    const totalUsd = cartFinalTotal();
     let html = "";
     if (val === "Pago móvil") {
       const bs = formatBs(totalUsd);
@@ -1216,6 +1299,7 @@
     el.checkoutForm.hidden = true;
     el.checkoutSuccess.hidden = true;
     el.checkoutError.hidden = true;
+    try { couponReset(); } catch (e) {}
     el.checkoutOverlay.hidden = false;
     document.body.style.overflow = "hidden";
     el.advisorConfirm.hidden = true; el.advisorAsk.hidden = false; setSubmitLabel();
@@ -1355,7 +1439,10 @@
     }).filter(Boolean);
 
     const subtotal = items.reduce((sum, i) => sum + i.qty * i.price, 0);
-    const total = subtotal;
+    const total = subtotal;                                      // la base aplica el descuento del código (si hay)
+    if (appliedCoupon && typeof bfInfo === "function" && bfInfo(siteSettings)) appliedCoupon = null;   // no se combina con Black Friday
+    const descuento = couponDiscount(subtotal);
+    const totalFinal = Math.max(0, Math.round((subtotal - descuento) * 100) / 100);
 
     // Comprobante (opcional): si no se puede subir, el pedido sigue y el cliente lo manda por WhatsApp
     let proofPath = "", proofFailed = false;
@@ -1391,6 +1478,7 @@
       assigned_by: advisorHow,
       advisor_phone: chosenAdvisor ? chosenAdvisor.phone : "",
     };
+    if (appliedCoupon) order.coupon_code = appliedCoupon.code;
     { const notes = [boxOrderNote(cart), boxSubsNote(cart)].filter(Boolean).join("\n"); if (notes) order.note = notes; }
 
     try {
@@ -1402,8 +1490,12 @@
       lines.push("");
       items.forEach(i => lines.push(`• ${i.qty}x ${i.name} — ${money(i.price)} c/u`));
       lines.push("");
-      lines.push(`Total: ${money(total)}`);
-      if (order.payment_method === "Pago móvil") { const bsLine = formatBs(total); if (bsLine) lines.push(`Monto a pagar: ${bsLine} (tasa ${exchangeRate().toLocaleString("es-VE")})`); }
+      if (descuento > 0) {
+        lines.push(`Subtotal: ${money(subtotal)}`);
+        lines.push(`🏷 Código ${appliedCoupon.code}: −${money(descuento)}`);
+      }
+      lines.push(`Total: ${money(totalFinal)}`);
+      if (order.payment_method === "Pago móvil") { const bsLine = formatBs(totalFinal); if (bsLine) lines.push(`Monto a pagar: ${bsLine} (tasa ${exchangeRate().toLocaleString("es-VE")})`); }
       lines.push("");
       lines.push(`Nombre: ${order.customer_name}`);
       if (order.customer_cedula) lines.push(`Cédula: ${order.customer_cedula}`);
@@ -1427,6 +1519,7 @@
       }
 
       saveCart({});
+      appliedCoupon = null;
       updateCartBadge();
       el.checkoutForm.hidden = true;
       pintarHorarioExito(order);
@@ -1437,6 +1530,7 @@
       if (err && err.code === "PM001") {
         const codigo = err.message, detalle = err.details, siPago = " Si ya hiciste el pago, escríbele a tu asesora por WhatsApp con tu comprobante.";
         if (codigo === "pedido_minimo") msg = `Tu pedido no llega al mínimo de ${WHOLESALE_MIN_TOTAL} perfumes${detalle ? ` (te faltan ${detalle})` : ""}. Cierra esta ventana, agrega los que faltan en el carrito y vuelve a intentarlo.`;
+        else if (codigo === "cupon_invalido") { msg = (COUPON_MSGS[detalle] || "El código de descuento no es válido.") + " Quita el código o usa otro, y vuelve a enviar el pedido."; appliedCoupon = null; try { couponPaint(); couponShow(COUPON_MSGS[detalle] || COUPON_MSGS.no_existe, false); } catch (e2) {} }
         else if (codigo === "producto_no_disponible") { msg = `Uno de los productos${detalle ? ` («${detalle}»)` : ""} se agotó mientras hacías tu pedido. Cierra esta ventana, revisa tu carrito y vuelve a intentarlo.` + siPago; refrescarCatalogo(); }
         else { msg = "Hay un problema con los productos de tu pedido. Cierra esta ventana, revisa tu carrito y vuelve a intentarlo." + siPago; refrescarCatalogo(); }
       }
