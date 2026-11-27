@@ -300,7 +300,8 @@
   /* ---------------------------------------------------------------
      Tabs
      --------------------------------------------------------------- */
-  const tabPanels = { summary: el.tabSummary, products: el.tabProducts, bulk: el.tabBulk, orders: el.tabOrders, clients: el.tabClients, banners: el.tabBanners, advisors: el.tabAdvisors, settings: el.tabSettings };
+  const tabPanels = { summary: el.tabSummary, products: el.tabProducts, bulk: el.tabBulk, orders: el.tabOrders, clients: el.tabClients, banners: el.tabBanners, coupons: document.getElementById("tabCoupons"), advisors: el.tabAdvisors, settings: el.tabSettings };
+  Object.keys(tabPanels).forEach(k => { if (!tabPanels[k]) delete tabPanels[k]; });
   document.querySelectorAll(".admin-tab").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".admin-tab").forEach(b => b.classList.remove("active"));
@@ -759,6 +760,7 @@
           ${orderItemsHtml(o, items, itemsText)}
           ${orderSwapNoteHtml(o)}
           <p class="order-total">${money(o.total)}${Number(o.total_bs) > 0 ? ` <span class="order-bs">· Bs ${Number(o.total_bs).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (tasa ${Number(o.exchange_rate).toLocaleString("es-VE")})</span>` : ""}</p>
+          ${o.coupon_code ? `<p class="order-coupon">🏷 Cupón <b>${String(o.coupon_code).replace(/[<>&]/g, "")}</b>: −${money(o.discount)} · subtotal ${money(o.subtotal)}</p>` : ""}
           <div class="order-pay-row">
             <span class="pay-badge ${o.payment_status || "pendiente"}">${PAY_LABELS[o.payment_status] || PAY_LABELS.pendiente}${o.payment_reference ? " · Ref " + o.payment_reference : ""}</span>
             <select class="order-pay-select" data-order-pay="${o.id}" title="Estado del pago">
@@ -1554,6 +1556,125 @@
   /* ---------------------------------------------------------------
      AJUSTES
      --------------------------------------------------------------- */
+  /* ---------------------------------------------------------------
+     CUPONES — códigos de descuento con vencimiento (solo administradora)
+     --------------------------------------------------------------- */
+  (function couponsAdmin() {
+    const $c = id => document.getElementById(id);
+    const panel = $c("tabCoupons"); if (!panel) return;
+    const st = document.createElement("style");
+    st.textContent = `
+      .coupon-form{ background:#fff; border:1px solid var(--line,#e5e5e0); border-radius:14px; padding:18px; margin:0 0 16px; }
+      .coupon-form .coupon-active{ align-self:end; padding-bottom:10px; }
+      .coupon-form-actions{ display:flex; gap:10px; align-items:center; margin-top:6px; }
+      .coupon-form-actions button[type=button]{ padding:10px 18px; border-radius:8px; border:1px solid #d6d3c8; background:#fff; cursor:pointer; }
+      .cp-code{ font-weight:800; letter-spacing:.05em; font-family:monospace; font-size:14px; }
+      .cp-chip{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700; }
+      .cp-chip.on{ background:#E7F6EC; color:#1D6B3A; } .cp-chip.off{ background:#F1F1EE; color:#666; }
+      .cp-chip.exp{ background:#FDECEC; color:#9B1C1C; } .cp-chip.soon{ background:#FFF6DB; color:#7A5A14; }
+      .cp-actions{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+      .cp-actions button{ border:1px solid #d6d3c8; background:#fff; border-radius:8px; padding:5px 10px; font-size:12px; cursor:pointer; }
+      .cp-actions button.del{ color:#9B1C1C; border-color:#E5B7B7; }
+      .order-coupon{ font-size:12.5px; color:#1D6B3A; margin:2px 0 0; }
+    `;
+    document.head.appendChild(st);
+
+    const form = $c("couponForm"), body = $c("couponsTableBody"), msg = $c("couponFormMessage");
+    const f = { id: $c("couponFieldId"), code: $c("couponFieldCode"), type: $c("couponFieldType"), value: $c("couponFieldValue"),
+                active: $c("couponFieldActive"), starts: $c("couponFieldStarts"), expires: $c("couponFieldExpires"), valueLabel: $c("couponFieldValueLabel") };
+    let coupons = [], uses = {};
+    const escC = s => String(s == null ? "" : s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    const hoyVE = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" });
+    const fmtD = d => d ? String(d).slice(0, 10).split("-").reverse().join("/") : "";
+    function estado(c) {
+      const hoy = hoyVE();
+      if (!c.active) return ["off", "Inactivo"];
+      if (c.expires_at && hoy > String(c.expires_at).slice(0, 10)) return ["exp", "Vencido"];
+      if (c.starts_at && hoy < String(c.starts_at).slice(0, 10)) return ["soon", "Programado"];
+      return ["on", "Vigente"];
+    }
+    function syncTypeLabel() { f.valueLabel.textContent = f.type.value === "percent" ? "Descuento (%) *" : "Descuento ($) *"; f.value.max = f.type.value === "percent" ? "100" : ""; }
+    f.type.addEventListener("change", syncTypeLabel);
+    f.code.addEventListener("input", () => { const p = f.code.selectionStart; f.code.value = f.code.value.toUpperCase().replace(/\s+/g, ""); try { f.code.setSelectionRange(p, p); } catch (e) {} });
+
+    function openForm(c) {
+      form.hidden = false; msg.hidden = true;
+      f.id.value = c ? c.id : ""; f.code.value = c ? c.code : ""; f.type.value = c ? c.discount_type : "percent";
+      f.value.value = c ? c.discount_value : ""; f.active.checked = c ? !!c.active : true;
+      f.starts.value = c && c.starts_at ? String(c.starts_at).slice(0, 10) : ""; f.expires.value = c && c.expires_at ? String(c.expires_at).slice(0, 10) : "";
+      syncTypeLabel(); f.code.focus();
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    $c("newCouponBtn").addEventListener("click", () => openForm(null));
+    $c("cancelCouponBtn").addEventListener("click", () => { form.hidden = true; });
+
+    async function loadCoupons() {
+      body.innerHTML = `<tr><td colspan="6">Cargando…</td></tr>`;
+      const { data, error } = await supabaseClient.from("coupons").select("*").order("created_at", { ascending: false });
+      if (error) { body.innerHTML = `<tr><td colspan="6">No se pudieron cargar los códigos: ${escC(error.message)}. ¿Ya corriste el SQL de cupones en Supabase?</td></tr>`; return; }
+      coupons = data || [];
+      uses = {};
+      const u = await supabaseClient.from("coupon_uses").select("coupon_id");
+      (u.data || []).forEach(r => { uses[r.coupon_id] = (uses[r.coupon_id] || 0) + 1; });
+      render();
+    }
+    function render() {
+      if (!coupons.length) { body.innerHTML = `<tr><td colspan="6">Todavía no hay códigos. Toca «+ Nuevo código».</td></tr>`; return; }
+      body.innerHTML = coupons.map(c => {
+        const [cls, txt] = estado(c);
+        const desc = c.discount_type === "percent" ? `${Number(c.discount_value)}%` : money(c.discount_value);
+        const vig = `${c.starts_at ? fmtD(c.starts_at) + " → " : "Hasta "}${fmtD(c.expires_at)}`;
+        return `<tr>
+          <td><span class="cp-code">${escC(c.code)}</span></td>
+          <td>${desc}</td>
+          <td>${vig}</td>
+          <td><span class="cp-chip ${cls}">${txt}</span></td>
+          <td>${uses[c.id] || 0}</td>
+          <td><div class="cp-actions">
+            <button type="button" data-cp-edit="${c.id}">Editar</button>
+            <button type="button" data-cp-toggle="${c.id}">${c.active ? "Desactivar" : "Activar"}</button>
+            <button type="button" class="del" data-cp-del="${c.id}">Borrar</button>
+          </div></td></tr>`;
+      }).join("");
+    }
+    body.addEventListener("click", async e => {
+      const ed = e.target.closest("[data-cp-edit]"), tg = e.target.closest("[data-cp-toggle]"), dl = e.target.closest("[data-cp-del]");
+      if (ed) { openForm(coupons.find(c => String(c.id) === ed.dataset.cpEdit)); return; }
+      if (tg) {
+        const c = coupons.find(x => String(x.id) === tg.dataset.cpToggle); if (!c) return;
+        const { error } = await supabaseClient.from("coupons").update({ active: !c.active }).eq("id", c.id);
+        if (error) { showToast("No se pudo cambiar: " + error.message, true); return; }
+        showToast(c.active ? "Código desactivado" : "Código activado"); loadCoupons(); return;
+      }
+      if (dl) {
+        const c = coupons.find(x => String(x.id) === dl.dataset.cpDel); if (!c) return;
+        if (!confirm(`¿Borrar el código ${c.code}? Los pedidos que ya lo usaron no cambian.`)) return;
+        const { error } = await supabaseClient.from("coupons").delete().eq("id", c.id);
+        if (error) { showToast("No se pudo borrar: " + error.message, true); return; }
+        showToast("Código borrado"); loadCoupons();
+      }
+    });
+    form.addEventListener("submit", async e => {
+      e.preventDefault(); msg.hidden = true;
+      const code = f.code.value.trim().toUpperCase().replace(/\s+/g, "");
+      const value = parseFloat(f.value.value);
+      if (!/^[A-Z0-9_-]{3,30}$/.test(code)) { showMessage(msg, "El código debe tener de 3 a 30 letras o números, sin espacios (se permiten - y _).", false); return; }
+      if (!(value > 0)) { showMessage(msg, "Escribe un descuento mayor que 0.", false); return; }
+      if (f.type.value === "percent" && value > 100) { showMessage(msg, "El porcentaje no puede pasar de 100.", false); return; }
+      if (!f.expires.value) { showMessage(msg, "Pon la fecha de vencimiento.", false); return; }
+      if (f.starts.value && f.starts.value > f.expires.value) { showMessage(msg, "La fecha «desde» no puede ser después del vencimiento.", false); return; }
+      const payload = { code, discount_type: f.type.value, discount_value: value, active: f.active.checked, starts_at: f.starts.value || null, expires_at: f.expires.value };
+      const btn = $c("saveCouponBtn"); btn.disabled = true; btn.textContent = "Guardando…";
+      const id = f.id.value;
+      const { error } = id ? await supabaseClient.from("coupons").update(payload).eq("id", id) : await supabaseClient.from("coupons").insert(payload);
+      btn.disabled = false; btn.textContent = "Guardar código";
+      if (error) { showMessage(msg, /duplicate|unique/i.test(error.message) ? `Ya existe un código ${code}.` : "No se pudo guardar: " + error.message, false); return; }
+      form.hidden = true; showToast(`Código ${code} guardado ✓`); loadCoupons();
+    });
+    const tabBtn = document.querySelector('.admin-tab[data-tab="coupons"]');
+    if (tabBtn) tabBtn.addEventListener("click", loadCoupons);
+  })();
+
   async function loadSettings() {
     const settings = await fetchSettings();
     el.settingsEyebrow.value = settings.eyebrow_text || "";

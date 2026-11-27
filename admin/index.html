@@ -49,6 +49,7 @@
     <button class="admin-tab" data-tab="orders">Pedidos <span class="tab-badge" id="ordersBadge" hidden>0</span></button>
     <button class="admin-tab" data-tab="clients">Clientes</button>
     <button class="admin-tab" data-tab="banners">Banners</button>
+    <button class="admin-tab" data-tab="coupons">Cupones</button>
     <button class="admin-tab" data-tab="advisors">Asesoras</button>
     <button class="admin-tab" data-tab="settings">Ajustes</button>
   </nav>
@@ -210,6 +211,54 @@
         <button id="newBannerBtn" class="btn-primary">+ Nuevo banner</button>
       </section>
       <div class="banners-list" id="bannersList"></div>
+    </div>
+
+    <!-- ============ TAB: CUPONES ============ -->
+    <div class="admin-tab-panel" id="tabCoupons" hidden>
+      <section class="admin-toolbar">
+        <p class="banners-hint">Códigos de descuento con fecha de vencimiento (hora de Venezuela). Cada cliente puede usar cada código <b>una sola vez</b> (por cédula) y no se combinan con el Black Friday.</p>
+        <button id="newCouponBtn" class="btn-primary" type="button">+ Nuevo código</button>
+      </section>
+      <form id="couponForm" class="settings-form coupon-form" hidden>
+        <input type="hidden" id="couponFieldId">
+        <div class="form-row two">
+          <label><span>Código *</span><input type="text" id="couponFieldCode" required maxlength="30" placeholder="Ej: CYBER10" autocomplete="off"></label>
+          <label><span>Tipo de descuento *</span>
+            <select id="couponFieldType">
+              <option value="percent">Porcentaje (%)</option>
+              <option value="fixed">Monto fijo ($)</option>
+            </select>
+          </label>
+        </div>
+        <div class="form-row two">
+          <label><span id="couponFieldValueLabel">Descuento (%) *</span><input type="number" id="couponFieldValue" required min="0.01" step="0.01" placeholder="Ej: 10"></label>
+          <label class="check-row coupon-active"><input type="checkbox" id="couponFieldActive" checked> <span>Activo</span></label>
+        </div>
+        <div class="form-row two">
+          <label><span>Válido desde <em class="opt">(opcional)</em></span><input type="date" id="couponFieldStarts"></label>
+          <label><span>Vence el día (incluido) *</span><input type="date" id="couponFieldExpires" required></label>
+        </div>
+        <div class="coupon-form-actions">
+          <button type="submit" class="btn-primary" id="saveCouponBtn">Guardar código</button>
+          <button type="button" id="cancelCouponBtn">Cancelar</button>
+        </div>
+        <p class="form-message" id="couponFormMessage" hidden></p>
+      </form>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Descuento</th>
+              <th>Vigencia</th>
+              <th>Estado</th>
+              <th>Usos</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="couponsTableBody"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- ============ TAB: ASESORAS ============ -->
